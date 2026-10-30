@@ -33,3 +33,27 @@
 - **Alternative rejected:** Validate salary bounds only when both values are present in the request.
 - **Why:** The contract explicitly requires PATCH comparisons against saved values and non-negative values.
 - **What breaks if changed:** A partial update could persist a salary range with its minimum above its maximum.
+
+## Task 3 — Job read endpoints and filters
+
+- **Decision:** Serialize job reads with the contract's exact public fields, filter with Django ORM lookups, and select the related company for its name.
+- **Alternative rejected:** Expose ownership data or interpolate filter text into SQL.
+- **Why:** Amendment A5 fixes the response fields, and failure rule 13 requires search text to remain safe from SQL injection.
+- **What breaks if changed:** Responses could leak owner data or filters could violate the required safe search behavior.
+
+## Task 4 — Resume, Application, and Notification models
+
+- **Decision:** Protect applications from deletion through candidate, job, or resume deletion, while cascading resume deletion with its candidate and notification deletion with its recipient or application.
+- **Alternative rejected:** Cascade-delete application history or retain notifications after their application is removed.
+- **Why:** Amendment A9 states that application history must not be lost accidentally and notifications are disposable.
+- **What breaks if changed:** Deleting a candidate, job, or resume could remove an application record; notifications could outlive their application.
+
+- **Decision:** Enforce one application per candidate/job with the database constraint `unique_application_per_candidate_job` and use exactly the five status values with `applied` as the default.
+- **Alternative rejected:** Rely only on application code for duplicates or allow additional status values.
+- **Why:** Amendment A10 defines the allowed status values, and A12 requires the named database constraint.
+- **What breaks if changed:** Duplicate applications could be stored or application statuses could diverge from the contract.
+
+- **Decision:** Limit resume titles and notification messages to 255 characters and store uploaded resume files under `resumes/`.
+- **Alternative rejected:** Use unrestricted text fields or a different upload folder.
+- **Why:** Amendment A11 specifies these limits and upload location.
+- **What breaks if changed:** These model fields would not match the contract.

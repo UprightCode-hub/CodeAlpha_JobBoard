@@ -56,3 +56,25 @@ class JobSerializer(serializers.ModelSerializer):
                 {"salary_min": "Minimum salary cannot exceed maximum salary."}
             )
         return attrs
+
+
+class JobReadSerializer(serializers.ModelSerializer):
+    company_name = serializers.CharField(source="company.name", read_only=True)
+
+    class Meta:
+        model = Job
+        fields = (
+            "id",
+            "title",
+            "description",
+            "location",
+            "job_type",
+            "work_model",
+            "experience_level",
+            "min_years_experience",
+            "salary_min",
+            "salary_max",
+            "is_open",
+            "created_at",
+            "company_name",
+        )

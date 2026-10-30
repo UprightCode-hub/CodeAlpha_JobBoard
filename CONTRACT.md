@@ -92,3 +92,19 @@ Not tested, and we say so in DECISIONS.md: truly simultaneous requests, dropped 
 
 ## Decision log (agent fills one entry per task in DECISIONS.md, using only reasons given in this file or by Wisdom)
 Entry format: decision, alternative rejected, why, what breaks if changed.
+
+## Amendments (the body above is never rewritten, changes are added here)
+A1. Error codes also include `method_not_allowed` (405). (already in the codes line above)
+A2. Failure rule 14: closing an already closed job returns 200 and changes nothing. (already in the rules above)
+A3. Failure rule 15: `is_open` can only be changed by the close endpoint. Create and PATCH ignore it. `company` and `owner` are never taken from the request body. (already in the rules above)
+A4. Text filters (q, location) are case-insensitive "contains".
+A5. A job is returned with exactly these fields: id, title, description, location, job_type, work_model, experience_level, min_years_experience, salary_min, salary_max, is_open, created_at, company_name. Nothing about the owner (no owner id, no email).
+A6. min_salary must be an integer >= 0. posted_within_days must be an integer >= 1. Bad values return 400 validation_error.
+A7. GET /api/my/jobs/ is paginated like every list. An employer with no jobs gets 200 with empty results.
+A8. Every list endpoint returns {count, next, previous, results}.
+
+## Amendments (added before Task 4)
+A9. Deletion rules (on_delete). Resume.candidate: CASCADE. Application.candidate: PROTECT. Application.job: PROTECT. Application.resume: PROTECT. Notification.recipient: CASCADE. Notification.application: CASCADE. Reason: the record of who applied to what is never lost by accident, notifications are disposable.
+A10. Application.status values are exactly: applied, reviewing, shortlisted, rejected, hired. Default applied.
+A11. Text limits: Resume.title and Notification.message are 255 characters. Resume.file uploads to the folder "resumes/".
+A12. The unique constraint on Application (candidate, job) is named `unique_application_per_candidate_job`.
