@@ -4,6 +4,8 @@ from .models import Company, Job
 
 
 class CompanySerializer(serializers.ModelSerializer):
+    """Validate and serialize company fields."""
+
     class Meta:
         model = Company
         fields = ("id", "owner", "name", "description")
@@ -11,6 +13,8 @@ class CompanySerializer(serializers.ModelSerializer):
 
 
 class JobSerializer(serializers.ModelSerializer):
+    """Validate job creation and update fields."""
+
     min_years_experience = serializers.IntegerField(min_value=0, max_value=2147483647)
     salary_min = serializers.IntegerField(
         min_value=0,
@@ -61,6 +65,8 @@ class JobSerializer(serializers.ModelSerializer):
 
 
 class JobReadSerializer(serializers.ModelSerializer):
+    """Serialize the public fields of a job listing."""
+
     company_name = serializers.CharField(source="company.name", read_only=True)
 
     class Meta:

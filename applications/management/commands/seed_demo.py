@@ -45,6 +45,8 @@ DEMO_JOBS = (
 
 
 class Command(BaseCommand):
+    """Create demo employer and candidate accounts with sample jobs."""
+
     help = "Create repeatable demo accounts, a company, and open jobs."
 
     @transaction.atomic

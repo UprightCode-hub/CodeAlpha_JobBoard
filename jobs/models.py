@@ -3,6 +3,8 @@ from django.db import models
 
 
 class Company(models.Model):
+    """Employer-owned company profile."""
+
     owner = models.OneToOneField(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -16,6 +18,8 @@ class Company(models.Model):
 
 
 class Job(models.Model):
+    """Job listing published by a company."""
+
     JOB_TYPE_CHOICES = [
         ("full_time", "Full time"),
         ("part_time", "Part time"),

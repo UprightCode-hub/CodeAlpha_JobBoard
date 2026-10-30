@@ -1,6 +1,4 @@
-"""Task 7 tests. Copy to applications/tests_schema.py in the repo. Agents must not edit it.
-They read the generated OpenAPI schema (the data behind the Swagger page) and check that it
-describes the requests, query parameters and responses that the contract defines."""
+"""Tests for the generated OpenAPI schema and its documented API fields."""
 import re
 
 from django.test import TestCase
@@ -157,7 +155,7 @@ class SchemaTests(TestCase):
                 self.assertIn("page", self.query_params(path, "get"))
 
     # responses
-    def test_responses_describe_the_contract_fields(self):
+    def test_responses_describe_the_api_fields(self):
         for path, method, code, kind, fields in RESPONSES:
             with self.subTest(path=path, method=method):
                 body = self.response_schema(path, method, code)

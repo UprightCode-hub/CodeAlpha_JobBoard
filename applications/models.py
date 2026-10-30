@@ -3,6 +3,8 @@ from django.db import models
 
 
 class Resume(models.Model):
+    """Candidate-owned resume and uploaded file."""
+
     candidate = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -17,6 +19,8 @@ class Resume(models.Model):
 
 
 class Application(models.Model):
+    """Candidate application linking a job and a resume."""
+
     STATUS_CHOICES = [
         ("applied", "Applied"),
         ("reviewing", "Reviewing"),
@@ -50,6 +54,7 @@ class Application(models.Model):
 
     class Meta:
         constraints = [
+            # Keep duplicate applications out of the database, including concurrent requests.
             models.UniqueConstraint(
                 fields=("candidate", "job"),
                 name="unique_application_per_candidate_job",
@@ -61,6 +66,8 @@ class Application(models.Model):
 
 
 class Notification(models.Model):
+    """Notification sent to an employer about an application."""
+
     recipient = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,

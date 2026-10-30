@@ -1,5 +1,4 @@
-"""Task 5 tests. Copy to applications/tests_api.py in the repo. Agents must not edit it.
-They use the ORM to set up data, so they do not depend on the Task 3 read endpoints."""
+"""Tests for resume uploads, applications, status updates, and notifications."""
 import shutil
 import tempfile
 from datetime import timedelta

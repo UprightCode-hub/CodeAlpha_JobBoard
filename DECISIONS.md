@@ -1,100 +1,154 @@
 # Decisions
 
-## Task 1 - Project setup, custom User, auth, error handler
+Each entry gives the decision, the alternative I rejected, why, and what breaks if it is changed.
 
-- **Decision:** Use a custom `accounts.User` with required unique email and an explicit employer/candidate role.
-- **Alternative rejected:** Use Django's default user model without a role.
-- **Why:** The contract requires `accounts.User`, unique email, and one of the two roles.
-- **What breaks if changed:** Registration and authenticated user responses would not meet the contract.
+## Accounts and errors
 
-- **Decision:** Use SimpleJWT's token obtain view for username/password login and expose only id, username, email, and role in register/me responses.
-- **Alternative rejected:** Return a password field or implement a separate login token flow.
-- **Why:** The contract specifies username/password login using SimpleJWT and forbids returning the password.
-- **What breaks if changed:** The login response or user response shapes would not match the contract.
+- **Decision:** Use a custom `accounts.User` with a required unique email and an explicit employer or candidate role.
+- **Alternative rejected:** Django's default user model with no role.
+- **Why:** Every permission in the API depends on the role, and an employer and a candidate must never be confused. Setting it up at the start avoids a painful user model migration later.
+- **What breaks if changed:** Role checks would need a second source of truth, and the user responses would lose the role.
 
-- **Decision:** Normalize API errors to the contract's JSON envelope and use generic messages.
-- **Alternative rejected:** Return serializer details or exception text to API clients.
-- **Why:** The contract requires one error shape and plain-sentence messages, with 500 details hidden.
-- **What breaks if changed:** Error responses could expose implementation details or differ from the required shape.
+- **Decision:** Use SimpleJWT for username and password login. Register and me responses expose only id, username, email and role.
+- **Alternative rejected:** Write a custom token flow, or return more user fields.
+- **Why:** SimpleJWT is a tested library, and writing my own token code adds risk for no benefit. The password never leaves the server.
+- **What breaks if changed:** A custom flow would need its own security testing, and extra fields could leak data.
 
-## Task 2 - Company and Job models and write endpoints
+- **Decision:** Every error uses one JSON shape with a code and a plain sentence. Server errors show no internal detail.
+- **Alternative rejected:** Return serializer details or exception text to the client.
+- **Why:** One shape is easy for a client to handle, and exception text can expose internals.
+- **What breaks if changed:** Clients would face several error formats, and 500 responses could leak code details.
 
-- **Decision:** Enforce one company per employer with a database OneToOne relation and take company ownership from the authenticated user.
-- **Alternative rejected:** Accept an owner from request data or allow multiple companies for one employer.
-- **Why:** The contract specifies one company per owner, and Task 2 requires owners to come from the logged-in user.
-- **What breaks if changed:** An employer could create multiple companies or act on behalf of another owner.
+## Companies and jobs
 
-- **Decision:** Keep company, job openness, and ownership fields read-only in API serializers; close jobs through the dedicated close endpoint.
-- **Alternative rejected:** Allow clients to choose a company or change `is_open` through create/PATCH.
-- **Why:** The contract states that company and owner are never taken from the body and `is_open` changes only through close.
-- **What breaks if changed:** Clients could assign jobs to another company or bypass the close endpoint.
+- **Decision:** One company per employer, enforced by a database OneToOne relation. The owner always comes from the logged-in user.
+- **Alternative rejected:** Accept an owner in the request body, or allow many companies per employer.
+- **Why:** Taking the owner from the request would let anyone act for another employer. The database rule holds even if the application code has a bug.
+- **What breaks if changed:** An employer could create several companies or write jobs for someone else's company.
 
-- **Decision:** Validate salary ranges using supplied values and saved values for partial updates, and reject negative salaries or experience.
-- **Alternative rejected:** Validate salary bounds only when both values are present in the request.
-- **Why:** The contract explicitly requires PATCH comparisons against saved values and non-negative values.
-- **What breaks if changed:** A partial update could persist a salary range with its minimum above its maximum.
+- **Decision:** Company, owner and `is_open` are read-only in create and PATCH. A job is closed only through its own close endpoint.
+- **Alternative rejected:** Let clients set these fields in the body.
+- **Why:** It stops a client from moving a job to another company or reopening a closed job by accident.
+- **What breaks if changed:** A client could assign a job to the wrong company or bypass the close rule.
 
-## Task 3 - Job read endpoints and filters
+- **Decision:** Check the salary range against saved values on partial updates, and reject negative salaries and experience.
+- **Alternative rejected:** Check the range only when both values are in the request.
+- **Why:** A PATCH that changes only the minimum could otherwise push it above the saved maximum.
+- **What breaks if changed:** A job could be saved with a minimum salary above its maximum.
 
-- **Decision:** Serialize job reads with the contract's exact public fields, filter with Django ORM lookups, and select the related company for its name.
-- **Alternative rejected:** Expose ownership data or interpolate filter text into SQL.
-- **Why:** Amendment A5 fixes the response fields, and failure rule 13 requires search text to remain safe from SQL injection.
-- **What breaks if changed:** Responses could leak owner data or filters could violate the required safe search behavior.
+- **Decision:** Job create, PATCH and close return the same fields as job reads, including the company name.
+- **Alternative rejected:** Return a different shape from write endpoints.
+- **Why:** A client should see one job shape everywhere. I found the mismatch by running the real server, not from the tests.
+- **What breaks if changed:** Clients would need two parsers for the same job.
 
-## Task 4 - Resume, Application, and Notification models
+## Job reading and search
 
-- **Decision:** Protect applications from deletion through candidate, job, or resume deletion, while cascading resume deletion with its candidate and notification deletion with its recipient or application.
-- **Alternative rejected:** Cascade-delete application history or retain notifications after their application is removed.
-- **Why:** Amendment A9 states that application history must not be lost accidentally and notifications are disposable.
-- **What breaks if changed:** Deleting a candidate, job, or resume could remove an application record; notifications could outlive their application.
+- **Decision:** Public job reads return a fixed set of fields. Filters use Django ORM lookups, and the company is loaded together with the job.
+- **Alternative rejected:** Expose owner data, or build SQL from the search text.
+- **Why:** ORM lookups keep search text safe from SQL injection, and loading the company with the job avoids one extra query per job in a list.
+- **What breaks if changed:** Owner details could leak, or search text could become an injection path.
 
-- **Decision:** Enforce one application per candidate/job with the database constraint `unique_application_per_candidate_job` and use exactly the five status values with `applied` as the default.
-- **Alternative rejected:** Rely only on application code for duplicates or allow additional status values.
-- **Why:** Amendment A10 defines the allowed status values, and A12 requires the named database constraint.
-- **What breaks if changed:** Duplicate applications could be stored or application statuses could diverge from the contract.
+## Resumes, applications and notifications
 
-- **Decision:** Limit resume titles and notification messages to 255 characters and store uploaded resume files under `resumes/`.
-- **Alternative rejected:** Use unrestricted text fields or a different upload folder.
-- **Why:** Amendment A11 specifies these limits and upload location.
-- **What breaks if changed:** These model fields would not match the contract.
+- **Decision:** Protect applications from deletion through the candidate, job or resume. Resumes are deleted with their candidate, and notifications are deleted with their recipient or application.
+- **Alternative rejected:** Cascade-delete application history, or keep notifications after their application is gone.
+- **Why:** Application history is a record that should not vanish by accident. Notifications are disposable.
+- **What breaks if changed:** Deleting a user, job or resume could silently erase application records.
 
-## Task 5 - Resume and application APIs
+- **Decision:** One application per candidate and job, enforced by the database constraint `unique_application_per_candidate_job`. Status has exactly five values and starts as `applied`.
+- **Alternative rejected:** Check duplicates only in application code, or allow free-text statuses.
+- **Why:** Two simultaneous requests can both pass a code check. The constraint is the real guard. A fixed status list keeps the data consistent.
+- **What breaks if changed:** Duplicates could be stored, and statuses could drift.
 
-- **Decision:** Validate resume extension, size, and file signature before saving, and create each application with its notification inside one transaction.
-- **Alternative rejected:** Trust file names alone or create the application and notification separately.
-- **Why:** Failure rules 1 and 7 require atomic apply behavior and content-based upload validation with no row or stored file on failed validation.
-- **What breaks if changed:** Invalid resume content could be stored or an application could exist without its notification.
+- **Decision:** Resume titles and notification messages are limited to 255 characters. Uploads are stored under `resumes/`.
+- **Alternative rejected:** Unlimited text fields.
+- **Why:** The database columns have a fixed length, so the limit must be known and handled.
+- **What breaks if changed:** Long values would raise database errors.
 
-## Task 6 - Admin, demo data, API docs, and project documentation
+- **Decision:** Check the resume extension, size and file signature before saving. Create the application and its notification in one transaction.
+- **Alternative rejected:** Trust the file name, or create the two records separately.
+- **Why:** A renamed file can pretend to be a PDF, so the content is checked. One transaction means an application never exists without its notification.
+- **What breaks if changed:** Fake files could be stored, or an application could exist with no notification.
 
-- **Decision:** Register each contract model in the Django admin with useful columns and search fields.
-- **Alternative rejected:** Leave the models unregistered or provide no searchable columns.
-- **Why:** Task 6 requires all six models to have useful list displays and search fields.
-- **What breaks if changed:** The admin pages would not satisfy Task 6.
+- **Decision:** When a long job title would overflow a notification, cut the message to 255 characters.
+- **Alternative rejected:** Reject the application, or let the database raise an error.
+- **Why:** A candidate should not be blocked from applying because of how long an employer wrote a title. Found with a 255 character title that caused a 500.
+- **What breaks if changed:** Applying to a job with a very long title would fail with a server error.
 
-- **Decision:** Use fixed demo account names and create-or-get behavior for the demo company and jobs.
-- **Alternative rejected:** Create new demo records on every invocation.
-- **Why:** Task 6 requires one employer, one candidate, one company, three open jobs, and no duplicates when run repeatedly.
-- **What breaks if changed:** Repeated seed runs would create duplicate demo data.
+## Input limits and errors found by real runs
 
-- **Decision:** Expose the OpenAPI schema and Swagger UI at the specified API paths.
-- **Alternative rejected:** Omit the schema or expose documentation at other paths.
-- **Why:** Task 6 requires both documented routes and the project tests verify them.
-- **What breaks if changed:** The schema and documentation endpoints would not meet the task requirements.
+- **Decision:** Reject numbers above 2147483647 in salary, experience and the salary filter, and return 400 for a null character in search or location.
+- **Alternative rejected:** Let the database reject them.
+- **Why:** These inputs made the real database raise errors that became 500 responses. A client mistake should be a 400, not a server error.
+- **What breaks if changed:** Large numbers or a null character would return a server error.
+
+- **Decision:** Add a catch-all route so unknown URLs return the JSON `not_found` shape.
+- **Alternative rejected:** Rely on Django's default 404 page.
+- **Why:** With `DEBUG=True`, Django shows an HTML debug page for unknown URLs. The test runner turns debug off, so the tests never saw this. I found it by running the real server.
+- **What breaks if changed:** Unknown URLs would return HTML in local development.
+
+- **Decision:** Log 500 errors to the console.
+- **Alternative rejected:** No logging setting.
+- **Why:** A server error that leaves no trace cannot be investigated. I confirmed that a test-run error prints its traceback.
+- **What breaks if changed:** Server errors would be invisible to whoever runs the server.
+
+- **Decision:** Remove a manual `updated_at` guard from the status view and fix the test that depended on it.
+- **Alternative rejected:** Keep the guard.
+- **Why:** `updated_at` is `auto_now`, so the guard did nothing. A test that compared two clock readings was flaky because the two could be equal on Windows. The test now moves the stored time back before the update.
+- **What breaks if changed:** The test could fail at random.
+
+## Admin, demo data and API docs
+
+- **Decision:** Register all six models in the Django admin with useful columns and search fields.
+- **Alternative rejected:** Leave them unregistered.
+- **Why:** The admin is the fastest way to inspect and fix data while developing.
+- **What breaks if changed:** Data would be hard to inspect.
+
+- **Decision:** `seed_demo` uses fixed usernames and create-or-get logic for the company and jobs.
+- **Alternative rejected:** Create new records on every run.
+- **Why:** The command must be safe to run twice. The password is for demo use only.
+- **What breaks if changed:** Repeated runs would create duplicate demo data.
+
+- **Decision:** Serve the OpenAPI schema at `/api/schema/` and Swagger UI at `/api/docs/`. Describe requests and responses with `@extend_schema` on the existing views.
+- **Alternative rejected:** Rewrite the views as `GenericAPIView` so the schema is guessed.
+- **Why:** The views already work and are tested, and hints add documentation without touching behavior. Swagger is how a reviewer can try the API without a frontend.
+- **What breaks if changed:** A rewrite risks changing status codes or error shapes.
+
+- **Decision:** Set `COMPONENT_SPLIT_REQUEST` so the resume upload field appears as a file chooser.
+- **Alternative rejected:** Leave the field documented as a URL.
+- **Why:** Without it, Swagger showed a text box instead of a Choose File button for resume uploads.
+- **What breaks if changed:** The upload could not be tried from the docs page.
+
+## What was verified by hand
+
+- A fresh clone in a new folder, with a new virtual environment and an empty database, installed from `requirements.txt`, migrated, seeded and served the docs page.
+- 139 checks over real HTTP against the running server, with `DEBUG=True`, all passed.
+- 10 simultaneous apply requests by one candidate for one job gave 1 x 201 and 9 x 400 `duplicate_application`, with no 500. Afterwards the database held exactly 1 application and 1 notification. I could not tell whether the code check or the unique constraint rejected the nine.
 
 ## Not covered by tests
 
-- Truly simultaneous requests.
+- Several candidates applying to one job at once, two status changes on one application at once, and closing a job while someone applies. Only the duplicate apply case above was tried.
 - Dropped connections.
 - Database down.
+- Load beyond a few hundred users.
+
+## Known gaps
+
+- No refresh token endpoint, even though login returns a refresh token.
+- No resume download endpoint.
+- No reporting or statistics endpoint.
+- No CORS headers, so a browser frontend on another address would be blocked.
+- No rate limiting on login.
+- Runs locally on the Django development server. Not hardened for production: HTTPS, SECRET_KEY handling and DEBUG.
+- `DEBUG=False` is not supported yet, because `ALLOWED_HOSTS` is not configurable.
+- Logging goes to the console only.
+- The docs page needs an internet connection, because it loads its scripts from a CDN.
+- Four cosmetic drf-spectacular warnings remain: one missing type hint, and three enum name collisions.
 
 ## If this grew 10x
 
-WISDOM TO CONFIRM: <ideas to be filled in>
-
-## Task 7 - Swagger schema hints
-
-- **Decision:** Describe requests and responses with `@extend_schema` on the existing views.
-- **Alternative rejected:** Rewrite the views as `GenericAPIView` so spectacular can guess serializers.
-- **Why:** The views already pass their tests and the contract says change nothing that works; hints add documentation without touching behavior.
-- **What breaks if changed:** A rewrite risks changing status codes or error shapes that Tasks 1 to 5 test.
+- Move resume files to cloud storage.
+- Add indexes on the search columns.
+- Send notifications from a background worker.
+- Add a refresh token endpoint.
+- Make `ALLOWED_HOSTS` and `DEBUG` configurable for a real deployment.

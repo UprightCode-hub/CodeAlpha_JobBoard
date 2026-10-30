@@ -1,10 +1,4 @@
-"""Tests for bugs found by running the real server, not the test runner.
-
-Why this file exists: the test runner forces DEBUG off, so earlier tests never saw
-Django's HTML debug 404 page. And the Task 2 write tests were written before A5,
-so nobody checked that create, PATCH and close return the A5 fields.
-See CONTRACT.md amendment A17.
-"""
+"""Tests for JSON 404 responses and job write response fields with DEBUG enabled."""
 from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
 from rest_framework.test import APITestCase
@@ -13,7 +7,7 @@ from jobs.models import Company
 
 User = get_user_model()
 
-A5_FIELDS = {
+JOB_RESPONSE_FIELDS = {
     "id", "title", "description", "location", "job_type", "work_model",
     "experience_level", "min_years_experience", "salary_min", "salary_max",
     "is_open", "created_at", "company_name",
@@ -49,7 +43,7 @@ class UnknownUrlJsonTests(TestCase):
 
 
 class JobWriteResponseShapeTests(APITestCase):
-    """POST, PATCH and close return exactly the A5 fields, like the read endpoints."""
+    """POST, PATCH, and close return the same fields as job reads."""
 
     def setUp(self):
         self.employer = User.objects.create_user(
@@ -75,22 +69,22 @@ class JobWriteResponseShapeTests(APITestCase):
             format="json",
         )
 
-    def test_create_response_has_exactly_the_a5_fields(self):
+    def test_create_response_has_job_read_fields(self):
         response = self.create_job()
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(set(response.json().keys()), A5_FIELDS)
+        self.assertEqual(set(response.json().keys()), JOB_RESPONSE_FIELDS)
         self.assertEqual(response.json()["company_name"], "Shape Co")
 
-    def test_patch_response_has_exactly_the_a5_fields(self):
+    def test_patch_response_has_job_read_fields(self):
         job_id = self.create_job().json()["id"]
         response = self.client.patch(f"/api/jobs/{job_id}/", {"title": "Renamed"}, format="json")
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(set(response.json().keys()), A5_FIELDS)
+        self.assertEqual(set(response.json().keys()), JOB_RESPONSE_FIELDS)
         self.assertEqual(response.json()["title"], "Renamed")
 
-    def test_close_response_has_exactly_the_a5_fields(self):
+    def test_close_response_has_job_read_fields(self):
         job_id = self.create_job().json()["id"]
         response = self.client.post(f"/api/jobs/{job_id}/close/")
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(set(response.json().keys()), A5_FIELDS)
+        self.assertEqual(set(response.json().keys()), JOB_RESPONSE_FIELDS)
         self.assertFalse(response.json()["is_open"])

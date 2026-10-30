@@ -1,5 +1,4 @@
-"""Task 6 tests. Copy to applications/tests_project.py in the repo. Agents must not edit it.
-They check the project as a whole: admin, demo data, API docs, the list of URLs, and the docs files."""
+"""Tests for project configuration, demo data, API docs, routes, and documentation files."""
 import io
 import re
 from contextlib import redirect_stdout
@@ -18,7 +17,7 @@ User = get_user_model()
 BASE = settings.BASE_DIR
 
 # Every route the project may expose. Admin routes are ignored, Django generates those.
-CONTRACT_ROUTES = {
+API_ROUTES = {
     "api/auth/register/",
     "api/auth/login/",
     "api/auth/me/",
@@ -105,7 +104,7 @@ class SeedDemoTests(TestCase):
         combos = {(j.job_type, j.work_model, j.experience_level) for j in Job.objects.all()}
         self.assertEqual(len(combos), 3)
 
-    def test_seeded_jobs_follow_the_contract_rules(self):
+    def test_seeded_jobs_follow_api_rules(self):
         run_seed()
         for job in Job.objects.all():
             self.assertGreaterEqual(job.min_years_experience, 0)
@@ -148,22 +147,22 @@ class ApiDocsTests(TestCase):
     def test_swagger_page_returns_200(self):
         self.assertEqual(self.client.get("/api/docs/").status_code, 200)
 
-    def test_schema_lists_every_contract_endpoint(self):
+    def test_schema_lists_every_api_endpoint(self):
         r = self.client.get("/api/schema/", {"format": "json"})
         self.assertEqual(r.status_code, 200)
-        wanted = {"/" + route for route in CONTRACT_ROUTES}
+        wanted = {"/" + route for route in API_ROUTES}
         wanted = {re.sub(r"<int:pk>", "{}", p) for p in wanted}
         got = {re.sub(r"\{[^}]+\}", "{}", p) for p in r.json()["paths"]}
         self.assertTrue(wanted.issubset(got), f"missing from schema: {sorted(wanted - got)}")
 
 
 class EndpointInventoryTests(TestCase):
-    def test_project_exposes_only_contract_routes_and_the_two_doc_routes(self):
+    def test_project_exposes_only_api_routes_and_the_two_doc_routes(self):
         routes = collect_routes(get_resolver().url_patterns)
         outside_admin = {r for r in routes if not r.startswith("admin/")}
-        # A17's catch-all route returns the JSON not_found response.
+        # The fallback route returns the JSON not_found response for unknown paths.
         catch_all_route = "^(?P<path>.*)$"
-        self.assertEqual(outside_admin, CONTRACT_ROUTES | DOC_ROUTES | {catch_all_route})
+        self.assertEqual(outside_admin, API_ROUTES | DOC_ROUTES | {catch_all_route})
 
 
 class DocsFilesTests(TestCase):

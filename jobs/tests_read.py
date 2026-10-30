@@ -1,4 +1,4 @@
-"""Task 3 tests. Copy to jobs/tests_read.py in the repo. Agents must not edit it."""
+"""Tests for public job reads, filters, and pagination."""
 from datetime import timedelta
 
 from django.contrib.auth import get_user_model

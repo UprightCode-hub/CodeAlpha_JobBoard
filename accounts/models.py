@@ -3,6 +3,8 @@ from django.db import models
 
 
 class User(AbstractUser):
+    """User account with an employer or candidate role."""
+
     ROLE_EMPLOYER = "employer"
     ROLE_CANDIDATE = "candidate"
     ROLE_CHOICES = [

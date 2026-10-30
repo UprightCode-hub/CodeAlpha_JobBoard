@@ -34,6 +34,7 @@ urlpatterns = [
     path("api/auth/", include("accounts.urls")),
     path("api/", include("jobs.urls")),
     path("api/", include("applications.urls")),
+    # Keep unknown paths in the JSON error format when DEBUG is enabled.
     re_path(r"^(?P<path>.*)$", unknown_url_view, name="unknown-url"),
 ]
 

@@ -92,6 +92,8 @@ def coded_error(code, message):
 
 
 class ResumeListCreateView(APIView):
+    """List the candidate's resumes or upload a new resume."""
+
     permission_classes = (IsAuthenticated, IsCandidate)
 
     @extend_schema(
@@ -120,6 +122,8 @@ class ResumeListCreateView(APIView):
 
 
 class ApplicationListCreateView(APIView):
+    """List visible applications or submit a candidate application."""
+
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
@@ -177,6 +181,7 @@ class ApplicationListCreateView(APIView):
             return coded_error("duplicate_application", "You have already applied for this job.")
 
         try:
+            # Store the application and notification together to avoid partial success.
             with transaction.atomic():
                 application = Application.objects.create(
                     candidate=request.user, job=job, resume=resume
@@ -184,6 +189,7 @@ class ApplicationListCreateView(APIView):
                 Notification.objects.create(
                     recipient=job.company.owner,
                     application=application,
+                    # Match the database column limit for notification messages.
                     message=f"{request.user.username} applied for {job.title}"[:255],
                 )
         except IntegrityError:
@@ -202,6 +208,8 @@ class ApplicationListCreateView(APIView):
 
 
 class ApplicationDetailView(APIView):
+    """Return an application to its candidate or the job's employer."""
+
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
@@ -227,6 +235,8 @@ class ApplicationDetailView(APIView):
 
 
 class ApplicationStatusView(APIView):
+    """Update an application status for the job's employer."""
+
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
@@ -272,6 +282,8 @@ class ApplicationStatusView(APIView):
 
 
 class NotificationListView(APIView):
+    """List notifications for the authenticated employer."""
+
     permission_classes = (IsAuthenticated, IsEmployer)
 
     @extend_schema(

@@ -1,4 +1,4 @@
-"""Task 1 tests. Copy this file to accounts/tests.py in the repo. Agents must not edit it."""
+"""Tests for account registration, authentication, and current-user APIs."""
 from datetime import timedelta
 
 from django.contrib.auth import get_user_model

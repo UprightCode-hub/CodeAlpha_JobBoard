@@ -1,5 +1,4 @@
-"""Task 2 tests. Copy to jobs/tests_write.py in the repo. Agents must not edit it.
-These tests check the database directly, so they do not depend on the Task 3 read endpoints."""
+"""Tests for company and job write endpoints."""
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
 from rest_framework.test import APITestCase

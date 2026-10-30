@@ -1,10 +1,4 @@
-"""Edge input tests: odd and extreme input must never cause a 500.
-
-Why this file exists: the contract tests use normal input. A real server meets
-huge numbers, very long text, null characters and odd page values, and the
-database has hard limits (255 characters, 32 bit integers). See CONTRACT.md A18.
-Rule: bad input gives 400 validation_error (or 404 for page numbers), never 500.
-"""
+"""Tests that edge inputs return validation errors instead of server errors."""
 from django.contrib.auth import get_user_model
 from rest_framework.test import APITestCase
 

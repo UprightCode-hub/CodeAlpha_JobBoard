@@ -5,6 +5,8 @@ User = get_user_model()
 
 
 class UserSerializer(serializers.ModelSerializer):
+    """Serialize public fields for the authenticated user."""
+
     class Meta:
         model = User
         fields = ("id", "username", "email", "role")
@@ -12,6 +14,8 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class RegisterSerializer(serializers.ModelSerializer):
+    """Validate and create a user account."""
+
     password = serializers.CharField(write_only=True)
 
     class Meta:

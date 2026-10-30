@@ -1,5 +1,4 @@
-"""Task 4 tests. Copy to applications/tests.py in the repo (replace the empty file Django created).
-Agents must not edit it. These tests check the models and database rules only, there are no endpoints yet."""
+"""Tests for application, resume, and notification models and database constraints."""
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
 from django.db.models import ProtectedError, UniqueConstraint

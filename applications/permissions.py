@@ -2,6 +2,8 @@ from rest_framework.permissions import BasePermission
 
 
 class IsCandidate(BasePermission):
+    """Allow access to authenticated candidate accounts."""
+
     def has_permission(self, request, view):
         return bool(
             request.user
@@ -11,6 +13,8 @@ class IsCandidate(BasePermission):
 
 
 class IsEmployer(BasePermission):
+    """Allow access to authenticated employer accounts."""
+
     def has_permission(self, request, view):
         return bool(
             request.user

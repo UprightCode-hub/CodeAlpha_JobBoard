@@ -6,6 +6,8 @@ from .models import Application, Notification, Resume
 
 
 class ResumeSerializer(serializers.ModelSerializer):
+    """Serialize resume metadata without exposing its file URL."""
+
     file_name = serializers.SerializerMethodField()
 
     class Meta:
@@ -18,6 +20,8 @@ class ResumeSerializer(serializers.ModelSerializer):
 
 
 class ResumeUploadSerializer(serializers.ModelSerializer):
+    """Validate resume metadata and uploaded file content."""
+
     class Meta:
         model = Resume
         fields = ("title", "file")
@@ -33,6 +37,7 @@ class ResumeUploadSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("The file must be no larger than 2 MB.")
 
         uploaded_file.seek(0)
+        # File names can be misleading, so check the content before storing the upload.
         header = uploaded_file.read(5)
         uploaded_file.seek(0)
         if extension == ".pdf" and not header.startswith(b"%PDF-"):
@@ -43,6 +48,8 @@ class ResumeUploadSerializer(serializers.ModelSerializer):
 
 
 class StrictIdField(serializers.Field):
+    """Accept integer identifiers without coercing other input types."""
+
     default_error_messages = {"invalid": "A valid integer id is required."}
 
     def to_internal_value(self, data):
@@ -55,11 +62,15 @@ class StrictIdField(serializers.Field):
 
 
 class ApplySerializer(serializers.Serializer):
+    """Validate job and resume identifiers for an application."""
+
     job = StrictIdField()
     resume = StrictIdField()
 
 
 class ApplicationSerializer(serializers.ModelSerializer):
+    """Serialize application details for candidates and employers."""
+
     job = serializers.IntegerField(source="job_id", read_only=True)
     job_title = serializers.CharField(source="job.title", read_only=True)
     company_name = serializers.CharField(source="job.company.name", read_only=True)
@@ -82,10 +93,14 @@ class ApplicationSerializer(serializers.ModelSerializer):
 
 
 class StatusSerializer(serializers.Serializer):
+    """Validate an application status value."""
+
     status = serializers.ChoiceField(choices=Application.STATUS_CHOICES)
 
 
 class NotificationSerializer(serializers.ModelSerializer):
+    """Serialize employer notification details."""
+
     application = serializers.IntegerField(source="application_id", read_only=True)
 
     class Meta:

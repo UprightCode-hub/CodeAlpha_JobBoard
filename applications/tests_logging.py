@@ -1,8 +1,4 @@
-"""Proof that server errors are hidden from the client and logged on the server.
-
-The contract says 500 errors hide details from the user and log them on the server.
-Nothing proved the second half. See CONTRACT.md A19.
-"""
+"""Tests that unexpected server errors are hidden from clients and logged."""
 from unittest.mock import patch
 
 from django.conf import settings

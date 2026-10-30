@@ -135,6 +135,8 @@ JOB_FILTER_PARAMETERS = [
 
 
 class CompanyView(APIView):
+    """Create, retrieve, or update the authenticated employer's company."""
+
     permission_classes = (IsAuthenticated, IsEmployer)
 
     @extend_schema(
@@ -179,6 +181,8 @@ class CompanyView(APIView):
 
 
 class JobCreateView(APIView):
+    """List open jobs or create a job for the authenticated employer."""
+
     def get_permissions(self):
         if self.request.method == "GET":
             return [AllowAny()]
@@ -222,6 +226,8 @@ class JobCreateView(APIView):
 
 
 class OwnedJobView(APIView):
+    """Provide shared access checks for job detail actions."""
+
     def get_permissions(self):
         if self.request.method == "GET":
             return [AllowAny()]
@@ -234,6 +240,8 @@ class OwnedJobView(APIView):
 
 
 class JobUpdateView(OwnedJobView):
+    """Retrieve or update a job listing."""
+
     @extend_schema(
         operation_id="jobs_detail",
         responses={200: JobReadSerializer},
@@ -262,6 +270,8 @@ class JobUpdateView(OwnedJobView):
 
 
 class JobCloseView(OwnedJobView):
+    """Close a job listing."""
+
     @extend_schema(
         operation_id="jobs_close",
         request=None,
@@ -276,6 +286,8 @@ class JobCloseView(OwnedJobView):
 
 
 class MyJobsView(APIView):
+    """List jobs owned by the authenticated employer."""
+
     permission_classes = (IsAuthenticated, IsEmployer)
 
     @extend_schema(
