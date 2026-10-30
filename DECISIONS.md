@@ -1,6 +1,6 @@
 # Decisions
 
-## Task 1 — Project setup, custom User, auth, error handler
+## Task 1 - Project setup, custom User, auth, error handler
 
 - **Decision:** Use a custom `accounts.User` with required unique email and an explicit employer/candidate role.
 - **Alternative rejected:** Use Django's default user model without a role.
@@ -17,7 +17,7 @@
 - **Why:** The contract requires one error shape and plain-sentence messages, with 500 details hidden.
 - **What breaks if changed:** Error responses could expose implementation details or differ from the required shape.
 
-## Task 2 — Company and Job models and write endpoints
+## Task 2 - Company and Job models and write endpoints
 
 - **Decision:** Enforce one company per employer with a database OneToOne relation and take company ownership from the authenticated user.
 - **Alternative rejected:** Accept an owner from request data or allow multiple companies for one employer.
@@ -34,14 +34,14 @@
 - **Why:** The contract explicitly requires PATCH comparisons against saved values and non-negative values.
 - **What breaks if changed:** A partial update could persist a salary range with its minimum above its maximum.
 
-## Task 3 — Job read endpoints and filters
+## Task 3 - Job read endpoints and filters
 
 - **Decision:** Serialize job reads with the contract's exact public fields, filter with Django ORM lookups, and select the related company for its name.
 - **Alternative rejected:** Expose ownership data or interpolate filter text into SQL.
 - **Why:** Amendment A5 fixes the response fields, and failure rule 13 requires search text to remain safe from SQL injection.
 - **What breaks if changed:** Responses could leak owner data or filters could violate the required safe search behavior.
 
-## Task 4 — Resume, Application, and Notification models
+## Task 4 - Resume, Application, and Notification models
 
 - **Decision:** Protect applications from deletion through candidate, job, or resume deletion, while cascading resume deletion with its candidate and notification deletion with its recipient or application.
 - **Alternative rejected:** Cascade-delete application history or retain notifications after their application is removed.
@@ -58,9 +58,36 @@
 - **Why:** Amendment A11 specifies these limits and upload location.
 - **What breaks if changed:** These model fields would not match the contract.
 
-## Task 5 — Resume and application APIs
+## Task 5 - Resume and application APIs
 
 - **Decision:** Validate resume extension, size, and file signature before saving, and create each application with its notification inside one transaction.
 - **Alternative rejected:** Trust file names alone or create the application and notification separately.
 - **Why:** Failure rules 1 and 7 require atomic apply behavior and content-based upload validation with no row or stored file on failed validation.
 - **What breaks if changed:** Invalid resume content could be stored or an application could exist without its notification.
+
+## Task 6 - Admin, demo data, API docs, and project documentation
+
+- **Decision:** Register each contract model in the Django admin with useful columns and search fields.
+- **Alternative rejected:** Leave the models unregistered or provide no searchable columns.
+- **Why:** Task 6 requires all six models to have useful list displays and search fields.
+- **What breaks if changed:** The admin pages would not satisfy Task 6.
+
+- **Decision:** Use fixed demo account names and create-or-get behavior for the demo company and jobs.
+- **Alternative rejected:** Create new demo records on every invocation.
+- **Why:** Task 6 requires one employer, one candidate, one company, three open jobs, and no duplicates when run repeatedly.
+- **What breaks if changed:** Repeated seed runs would create duplicate demo data.
+
+- **Decision:** Expose the OpenAPI schema and Swagger UI at the specified API paths.
+- **Alternative rejected:** Omit the schema or expose documentation at other paths.
+- **Why:** Task 6 requires both documented routes and the project tests verify them.
+- **What breaks if changed:** The schema and documentation endpoints would not meet the task requirements.
+
+## Not covered by tests
+
+- Truly simultaneous requests.
+- Dropped connections.
+- Database down.
+
+## If this grew 10x
+
+WISDOM TO CONFIRM: <ideas to be filled in>
