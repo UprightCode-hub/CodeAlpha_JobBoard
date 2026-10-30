@@ -94,6 +94,11 @@ REST_FRAMEWORK = {
     "EXCEPTION_HANDLER": "config.exceptions.exception_handler",
 }
 
+SPECTACULAR_SETTINGS = {
+    "TITLE": "CodeAlpha Job Board API",
+    "COMPONENT_SPLIT_REQUEST": True,
+}
+
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"
 USE_I18N = True

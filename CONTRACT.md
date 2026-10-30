@@ -118,3 +118,8 @@ d. GET /api/applications/ and GET /api/notifications/ are newest first and pagin
 e. Apply checks run in this order: job and resume ids exist (else 400 validation_error), job is open (else job_closed), resume belongs to the candidate (else invalid_resume), not already applied (else duplicate_application).
 f. PATCH /api/applications/<id>/status/ returns 200 with the Application fields from (a). Only `status` changes. Other fields in the body are ignored. The status can be changed even when the job is closed. Changing a status creates no Notification.
 g. A failed Resume upload leaves no Resume row and no stored file.
+
+## Amendments (added before Task 7)
+A14. Task 7 (Copilot) adds Swagger schema hints only, with no change to endpoint behavior. Files: jobs/views.py, applications/views.py, config/settings.py (TITLE only), DECISIONS.md. Tests: applications/tests_schema.py.
+
+A15. Task 7b: SPECTACULAR_SETTINGS may also contain COMPONENT_SPLIT_REQUEST set to True, so file uploads are documented as binary. Schema documentation only, no change to endpoint behavior.`

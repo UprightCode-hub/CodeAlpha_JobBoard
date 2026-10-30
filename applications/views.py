@@ -4,11 +4,19 @@ from django.db import IntegrityError, transaction
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import status
+from rest_framework import serializers
 from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+from drf_spectacular.utils import (
+    OpenApiParameter,
+    OpenApiTypes,
+    extend_schema,
+    inline_serializer,
+)
 
 from jobs.models import Job
 
@@ -23,6 +31,61 @@ from .serializers import (
     StatusSerializer,
 )
 
+PAGE_PARAMETER = OpenApiParameter(
+    "page",
+    OpenApiTypes.INT,
+    OpenApiParameter.QUERY,
+)
+RESUME_LIST_RESPONSE = inline_serializer(
+    name="ResumeListResponse",
+    fields={
+        "count": serializers.IntegerField(),
+        "next": serializers.URLField(allow_null=True),
+        "previous": serializers.URLField(allow_null=True),
+        "results": ResumeSerializer(many=True),
+    },
+)
+APPLICATION_LIST_RESPONSE = inline_serializer(
+    name="ApplicationListResponse",
+    fields={
+        "count": serializers.IntegerField(),
+        "next": serializers.URLField(allow_null=True),
+        "previous": serializers.URLField(allow_null=True),
+        "results": ApplicationSerializer(many=True),
+    },
+)
+NOTIFICATION_LIST_RESPONSE = inline_serializer(
+    name="NotificationListResponse",
+    fields={
+        "count": serializers.IntegerField(),
+        "next": serializers.URLField(allow_null=True),
+        "previous": serializers.URLField(allow_null=True),
+        "results": NotificationSerializer(many=True),
+    },
+)
+RESUME_UPLOAD_REQUEST = inline_serializer(
+    name="ResumeUploadRequest",
+    fields={
+        "title": serializers.CharField(),
+        "file": serializers.FileField(),
+    },
+)
+APPLY_REQUEST = inline_serializer(
+    name="ApplyRequest",
+    fields={
+        "job": serializers.IntegerField(),
+        "resume": serializers.IntegerField(),
+    },
+)
+STATUS_REQUEST = inline_serializer(
+    name="ApplicationStatusRequest",
+    fields={
+        "status": serializers.ChoiceField(
+            choices=("applied", "reviewing", "shortlisted", "rejected", "hired")
+        ),
+    },
+)
+
 
 def coded_error(code, message):
     return Response(
@@ -34,6 +97,11 @@ def coded_error(code, message):
 class ResumeListCreateView(APIView):
     permission_classes = (IsAuthenticated, IsCandidate)
 
+    @extend_schema(
+        operation_id="resumes_list",
+        parameters=[PAGE_PARAMETER],
+        responses={200: RESUME_LIST_RESPONSE},
+    )
     def get(self, request):
         queryset = Resume.objects.filter(candidate=request.user).order_by(
             "-uploaded_at", "-id"
@@ -42,6 +110,11 @@ class ResumeListCreateView(APIView):
         page = paginator.paginate_queryset(queryset, request, view=self)
         return paginator.get_paginated_response(ResumeSerializer(page, many=True).data)
 
+    @extend_schema(
+        operation_id="resumes_create",
+        request=RESUME_UPLOAD_REQUEST,
+        responses={201: ResumeSerializer},
+    )
     def post(self, request):
         serializer = ResumeUploadSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -52,6 +125,11 @@ class ResumeListCreateView(APIView):
 class ApplicationListCreateView(APIView):
     permission_classes = (IsAuthenticated,)
 
+    @extend_schema(
+        operation_id="applications_list",
+        parameters=[PAGE_PARAMETER],
+        responses={200: APPLICATION_LIST_RESPONSE},
+    )
     def get(self, request):
         queryset = Application.objects.select_related(
             "job", "job__company", "candidate", "resume"
@@ -69,6 +147,11 @@ class ApplicationListCreateView(APIView):
             ApplicationSerializer(page, many=True).data
         )
 
+    @extend_schema(
+        operation_id="applications_create",
+        request=APPLY_REQUEST,
+        responses={201: ApplicationSerializer},
+    )
     def post(self, request):
         if getattr(request.user, "role", None) != "candidate":
             return Response(
@@ -124,6 +207,10 @@ class ApplicationListCreateView(APIView):
 class ApplicationDetailView(APIView):
     permission_classes = (IsAuthenticated,)
 
+    @extend_schema(
+        operation_id="applications_detail",
+        responses={200: ApplicationSerializer},
+    )
     def get(self, request, pk):
         application = get_object_or_404(
             Application.objects.select_related("job", "job__company", "candidate", "resume"),
@@ -145,6 +232,11 @@ class ApplicationDetailView(APIView):
 class ApplicationStatusView(APIView):
     permission_classes = (IsAuthenticated,)
 
+    @extend_schema(
+        operation_id="application_status_update",
+        request=STATUS_REQUEST,
+        responses={200: ApplicationSerializer},
+    )
     def patch(self, request, pk):
         if getattr(request.user, "role", None) == "candidate":
             return Response(
@@ -188,6 +280,11 @@ class ApplicationStatusView(APIView):
 class NotificationListView(APIView):
     permission_classes = (IsAuthenticated, IsEmployer)
 
+    @extend_schema(
+        operation_id="notifications_list",
+        parameters=[PAGE_PARAMETER],
+        responses={200: NOTIFICATION_LIST_RESPONSE},
+    )
     def get(self, request):
         queryset = Notification.objects.filter(recipient=request.user).select_related(
             "application"

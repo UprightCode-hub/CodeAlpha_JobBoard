@@ -91,3 +91,10 @@
 ## If this grew 10x
 
 WISDOM TO CONFIRM: <ideas to be filled in>
+
+## Task 7 - Swagger schema hints
+
+- **Decision:** Describe requests and responses with `@extend_schema` on the existing views.
+- **Alternative rejected:** Rewrite the views as `GenericAPIView` so spectacular can guess serializers.
+- **Why:** The views already pass their tests and the contract says change nothing that works; hints add documentation without touching behavior.
+- **What breaks if changed:** A rewrite risks changing status codes or error shapes that Tasks 1 to 5 test.
