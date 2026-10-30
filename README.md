@@ -317,4 +317,5 @@ python manage.py test accounts jobs applications
 
 ## Project notes
 
-- [DECISIONS.md](./DECISIONS.md)
+- [DESIGN.md](./DESIGN.md): the system design, tradeoffs and how it was tested.
+- [DECISIONS.md](./DECISIONS.md): each decision, the alternative rejected, and why.
