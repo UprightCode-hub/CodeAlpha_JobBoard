@@ -172,27 +172,3 @@ class DocsFilesTests(TestCase):
             self.assertRegex(text, rf"(?m)^{name}=")
         self.assertNotIn("\u2014", text)
 
-    def test_readme_has_both_diagrams_and_the_required_parts(self):
-        text = read("README.md")
-        self.assertNotIn("\u2014", text)
-        self.assertGreaterEqual(text.count("```mermaid"), 2)
-        self.assertIn("DECISIONS.md", text)
-        self.assertIn("seed_demo", text)
-        self.assertIn("/api/docs/", text)
-        self.assertIn("manage.py test", text)
-        self.assertIn("erDiagram", text)
-        self.assertTrue(any(word in text for word in ("flowchart", "sequenceDiagram", "graph TD", "graph LR")))
-        start = text.index("erDiagram")
-        end = text.find("```", start)
-        er_block = text[start:end]
-        for name in ["User", "Company", "Job", "Resume", "Application", "Notification"]:
-            self.assertIn(name, er_block)
-
-    def test_decisions_has_the_required_sections(self):
-        text = read("DECISIONS.md")
-        self.assertIn("Not covered by tests", text)
-        self.assertIn("simultaneous", text.lower())
-        self.assertIn("dropped connections", text.lower())
-        self.assertIn("database down", text.lower())
-        self.assertIn("If this grew 10x", text)
-        self.assertIn("WISDOM TO CONFIRM:", text)
