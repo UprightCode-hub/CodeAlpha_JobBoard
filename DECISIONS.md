@@ -57,3 +57,10 @@
 - **Alternative rejected:** Use unrestricted text fields or a different upload folder.
 - **Why:** Amendment A11 specifies these limits and upload location.
 - **What breaks if changed:** These model fields would not match the contract.
+
+## Task 5 — Resume and application APIs
+
+- **Decision:** Validate resume extension, size, and file signature before saving, and create each application with its notification inside one transaction.
+- **Alternative rejected:** Trust file names alone or create the application and notification separately.
+- **Why:** Failure rules 1 and 7 require atomic apply behavior and content-based upload validation with no row or stored file on failed validation.
+- **What breaks if changed:** Invalid resume content could be stored or an application could exist without its notification.

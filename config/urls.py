@@ -21,6 +21,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path("api/auth/", include("accounts.urls")),
     path("api/", include("jobs.urls")),
+    path("api/", include("applications.urls")),
 ]
 
 handler404 = "config.exceptions.not_found_view"

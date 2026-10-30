@@ -108,3 +108,13 @@ A9. Deletion rules (on_delete). Resume.candidate: CASCADE. Application.candidate
 A10. Application.status values are exactly: applied, reviewing, shortlisted, rejected, hired. Default applied.
 A11. Text limits: Resume.title and Notification.message are 255 characters. Resume.file uploads to the folder "resumes/".
 A12. The unique constraint on Application (candidate, job) is named `unique_application_per_candidate_job`.
+
+## Amendments (added before Task 5)
+A13. Task 5 decisions.
+a. Response fields, exactly these and no others. Resume: id, title, file_name (the file name only, no URL, because there is no download endpoint in this scope), uploaded_at. Application: id, job (the job id), job_title, company_name, candidate_username, resume (the resume id), status, applied_at, updated_at. No emails. Notification: id, message, application (the application id), is_read, created_at.
+b. Notification message text is exactly "<candidate username> applied for <job title>".
+c. Settings: MEDIA_ROOT is BASE_DIR / "media" and MEDIA_URL is "/media/".
+d. GET /api/applications/ and GET /api/notifications/ are newest first and paginated like every list (A8). A page number out of range is 404 not_found.
+e. Apply checks run in this order: job and resume ids exist (else 400 validation_error), job is open (else job_closed), resume belongs to the candidate (else invalid_resume), not already applied (else duplicate_application).
+f. PATCH /api/applications/<id>/status/ returns 200 with the Application fields from (a). Only `status` changes. Other fields in the body are ignored. The status can be changed even when the job is closed. Changing a status creates no Notification.
+g. A failed Resume upload leaves no Resume row and no stored file.
