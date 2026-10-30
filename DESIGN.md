@@ -132,7 +132,7 @@ Each step was finished and tested before the next started, because later steps d
 
 | Layer | What it proves | Result |
 |---|---|---|
-| Automated tests | Rules for roles, ownership, validation, filters, the apply flow, errors, admin, docs routes | 248 tests, OK |
+| Automated tests | Rules for roles, ownership, validation, filters, the apply flow, errors, admin, docs routes | 246 tests, OK |
 | Real HTTP checks | 139 checks against the running server with `DEBUG=True` | 139 passed, 0 failed |
 | Simultaneous apply | 10 requests at once by one candidate for one job | 1 x 201, 9 x 400 `duplicate_application`, no 500, then exactly 1 application and 1 notification in the database |
 | Fresh clone | A new folder, new virtual environment and empty database, following the README | Installed, migrated, seeded, docs page loaded, login returned tokens, unknown URL returned JSON |
