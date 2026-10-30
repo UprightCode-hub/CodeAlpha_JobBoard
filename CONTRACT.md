@@ -133,6 +133,4 @@ A18. Edge input rules, found by tests in applications/tests_edge_inputs.py. (a) 
 
 A19. Server error logging. config/settings.py gets a LOGGING setting that prints errors to the console, so the tracebacks that the 500 handler logs (failure rule on 500 errors) are visible on the server. Console only, no files, no new packages. Files allowed: config/settings.py. No change to endpoint behavior.
 
-A19. Server error logging. config/settings.py gets a LOGGING setting that prints errors to the console, so the tracebacks that the 500 handler logs are visible on the server. Console only, no files, no new packages. Files allowed: config/settings.py. No change to endpoint behavior. Tests: applications/tests_logging.py.
-
 A20. The route inventory test in applications/tests_project.py, test_project_exposes_only_contract_routes_and_the_two_doc_routes, may be edited so its expected set also contains the catch-all route added by A17 (pattern ^(?P<path>.*)$, returns JSON not_found). No other test is changed. Reason: the A17 catch-all is a deliberate route, so the inventory test must expect it.
