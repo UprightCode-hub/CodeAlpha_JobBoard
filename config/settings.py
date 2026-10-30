@@ -94,6 +94,29 @@ REST_FRAMEWORK = {
     "EXCEPTION_HANDLER": "config.exceptions.exception_handler",
 }
 
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "console": {
+            "format": "%(asctime)s %(levelname)s %(name)s %(message)s",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "console",
+        },
+    },
+    "loggers": {
+        "django.request": {
+            "level": "ERROR",
+            "handlers": ["console"],
+            "propagate": False,
+        },
+    },
+}
+
 SPECTACULAR_SETTINGS = {
     "TITLE": "CodeAlpha Job Board API",
     "COMPONENT_SPLIT_REQUEST": True,

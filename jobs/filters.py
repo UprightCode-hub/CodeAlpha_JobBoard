@@ -8,12 +8,16 @@ from .models import Job
 
 def filter_jobs(queryset, params):
     q = params.get("q")
+    if q is not None and "\x00" in q:
+        raise ValidationError({"q": "Null characters are not allowed."})
     if q:
         queryset = queryset.filter(title__icontains=q) | queryset.filter(
             description__icontains=q
         )
 
     location = params.get("location")
+    if location is not None and "\x00" in location:
+        raise ValidationError({"location": "Null characters are not allowed."})
     if location:
         queryset = queryset.filter(location__icontains=location)
 
@@ -31,7 +35,9 @@ def filter_jobs(queryset, params):
 
     min_salary = params.get("min_salary")
     if min_salary is not None:
-        parsed = _positive_integer(min_salary, "min_salary", allow_zero=True)
+        parsed = _positive_integer(
+            min_salary, "min_salary", allow_zero=True, max_value=2147483647
+        )
         queryset = queryset.filter(salary_max__gte=parsed, salary_max__isnull=False)
 
     posted_within_days = params.get("posted_within_days")
@@ -42,11 +48,13 @@ def filter_jobs(queryset, params):
     return queryset
 
 
-def _positive_integer(value, field, allow_zero=False):
+def _positive_integer(value, field, allow_zero=False, max_value=None):
     try:
         parsed = int(value)
     except (TypeError, ValueError):
         raise ValidationError({field: "A valid integer is required."})
     if parsed < (0 if allow_zero else 1):
+        raise ValidationError({field: "A valid integer is required."})
+    if max_value is not None and parsed > max_value:
         raise ValidationError({field: "A valid integer is required."})
     return parsed

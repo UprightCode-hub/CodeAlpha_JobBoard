@@ -161,7 +161,9 @@ class EndpointInventoryTests(TestCase):
     def test_project_exposes_only_contract_routes_and_the_two_doc_routes(self):
         routes = collect_routes(get_resolver().url_patterns)
         outside_admin = {r for r in routes if not r.startswith("admin/")}
-        self.assertEqual(outside_admin, CONTRACT_ROUTES | DOC_ROUTES)
+        # A17's catch-all route returns the JSON not_found response.
+        catch_all_route = "^(?P<path>.*)$"
+        self.assertEqual(outside_admin, CONTRACT_ROUTES | DOC_ROUTES | {catch_all_route})
 
 
 class DocsFilesTests(TestCase):

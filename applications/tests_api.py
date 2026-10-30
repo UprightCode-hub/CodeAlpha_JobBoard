@@ -2,12 +2,14 @@
 They use the ORM to set up data, so they do not depend on the Task 3 read endpoints."""
 import shutil
 import tempfile
+from datetime import timedelta
 from unittest import mock
 
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db.models.query import QuerySet
 from django.test import override_settings
+from django.utils import timezone
 from rest_framework.test import APITestCase
 
 from applications.models import Application, Notification, Resume
@@ -653,7 +655,10 @@ class StatusTests(Base):
     def test_updated_at_changes_on_success(self):
         self.login(self.emp1)
         app = self.make_app()
-        before = app.updated_at
+        # auto_now can give the same clock reading twice, so move the old value into the past.
+        # .update() skips auto_now, so the PATCH is guaranteed a later value.
+        before = timezone.now() - timedelta(minutes=1)
+        Application.objects.filter(pk=app.pk).update(updated_at=before)
         self.assertEqual(self.patch_status(app, "reviewing").status_code, 200)
         app.refresh_from_db()
         self.assertGreater(app.updated_at, before)

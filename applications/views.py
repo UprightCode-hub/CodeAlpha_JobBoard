@@ -1,8 +1,5 @@
-from datetime import timedelta
-
 from django.db import IntegrityError, transaction
 from django.shortcuts import get_object_or_404
-from django.utils import timezone
 from rest_framework import status
 from rest_framework import serializers
 from rest_framework.exceptions import NotFound, ValidationError
@@ -187,7 +184,7 @@ class ApplicationListCreateView(APIView):
                 Notification.objects.create(
                     recipient=job.company.owner,
                     application=application,
-                    message=f"{request.user.username} applied for {job.title}",
+                    message=f"{request.user.username} applied for {job.title}"[:255],
                 )
         except IntegrityError:
             if Application.objects.filter(candidate=request.user, job=job).first() is not None:
@@ -270,9 +267,6 @@ class ApplicationStatusView(APIView):
             return coded_error("invalid_transition", "This status transition is not allowed.")
 
         application.status = target
-        application.updated_at = max(
-            timezone.now(), application.updated_at + timedelta(microseconds=1)
-        )
         application.save(update_fields=("status", "updated_at"))
         return Response(ApplicationSerializer(application).data)
 

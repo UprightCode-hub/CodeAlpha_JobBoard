@@ -11,14 +11,16 @@ class CompanySerializer(serializers.ModelSerializer):
 
 
 class JobSerializer(serializers.ModelSerializer):
-    min_years_experience = serializers.IntegerField(min_value=0)
+    min_years_experience = serializers.IntegerField(min_value=0, max_value=2147483647)
     salary_min = serializers.IntegerField(
         min_value=0,
+        max_value=2147483647,
         required=False,
         allow_null=True,
     )
     salary_max = serializers.IntegerField(
         min_value=0,
+        max_value=2147483647,
         required=False,
         allow_null=True,
     )

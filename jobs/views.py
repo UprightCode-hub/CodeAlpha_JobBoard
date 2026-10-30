@@ -29,9 +29,9 @@ JOB_REQUEST_FIELDS = {
     ),
     "work_model": serializers.ChoiceField(choices=("remote", "hybrid", "onsite")),
     "experience_level": serializers.ChoiceField(choices=("entry", "mid", "senior")),
-    "min_years_experience": serializers.IntegerField(min_value=0),
-    "salary_min": serializers.IntegerField(min_value=0, allow_null=True, required=False),
-    "salary_max": serializers.IntegerField(min_value=0, allow_null=True, required=False),
+    "min_years_experience": serializers.IntegerField(min_value=0, max_value=2147483647),
+    "salary_min": serializers.IntegerField(min_value=0, max_value=2147483647, allow_null=True, required=False),
+    "salary_max": serializers.IntegerField(min_value=0, max_value=2147483647, allow_null=True, required=False),
 }
 JOB_CREATE_REQUEST = inline_serializer(
     name="JobCreateRequest",
@@ -57,15 +57,18 @@ JOB_PATCH_REQUEST = inline_serializer(
         ),
         "min_years_experience": serializers.IntegerField(
             min_value=0,
+            max_value=2147483647,
             required=False,
         ),
         "salary_min": serializers.IntegerField(
             min_value=0,
+            max_value=2147483647,
             allow_null=True,
             required=False,
         ),
         "salary_max": serializers.IntegerField(
             min_value=0,
+            max_value=2147483647,
             allow_null=True,
             required=False,
         ),
@@ -214,8 +217,8 @@ class JobCreateView(APIView):
 
         serializer = JobSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save(company=company)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        job = serializer.save(company=company)
+        return Response(JobReadSerializer(job).data, status=status.HTTP_201_CREATED)
 
 
 class OwnedJobView(APIView):
@@ -254,8 +257,8 @@ class JobUpdateView(OwnedJobView):
         job = self.get_owned_job(request, pk)
         serializer = JobSerializer(job, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response(serializer.data)
+        job = serializer.save()
+        return Response(JobReadSerializer(job).data)
 
 
 class JobCloseView(OwnedJobView):
@@ -269,7 +272,7 @@ class JobCloseView(OwnedJobView):
         if job.is_open:
             job.is_open = False
             job.save(update_fields=("is_open",))
-        return Response(JobSerializer(job).data)
+        return Response(JobReadSerializer(job).data)
 
 
 class MyJobsView(APIView):

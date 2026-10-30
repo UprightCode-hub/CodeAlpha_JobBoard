@@ -123,3 +123,16 @@ g. A failed Resume upload leaves no Resume row and no stored file.
 A14. Task 7 (Copilot) adds Swagger schema hints only, with no change to endpoint behavior. Files: jobs/views.py, applications/views.py, config/settings.py (TITLE only), DECISIONS.md. Tests: applications/tests_schema.py.
 
 A15. Task 7b: SPECTACULAR_SETTINGS may also contain COMPONENT_SPLIT_REQUEST set to True, so file uploads are documented as binary. Schema documentation only, no change to endpoint behavior.`
+
+## Amendments (added after the real-life test phase)
+A16. Test fix and cleanup, no change to endpoint behavior. In applications/tests_api.py, test_updated_at_changes_on_success may be rewritten so it sets updated_at one minute into the past with Application.objects.filter(pk=...).update(...) before the PATCH, because auto_now makes two close clock readings equal. In applications/views.py, the unused manual updated_at assignment before save in the status update view is removed, because updated_at is auto_now and Django overwrites it. Reason: the test failed once in a full run, root cause was a flaky clock comparison, not a bug.
+
+A17. Fixes found by running the real server. (a) Unknown URLs return the JSON not_found error also when DEBUG is True, through a catch-all route placed last in config/urls.py that reuses the existing not_found view. (b) POST /api/jobs/, PATCH /api/jobs/<id>/ and POST /api/jobs/<id>/close/ return the same fields as A5, using JobReadSerializer for the response only. Request validation and status codes do not change. New tests: applications/tests_realworld.py. Files allowed: config/urls.py, jobs/views.py.
+
+A18. Edge input rules, found by tests in applications/tests_edge_inputs.py. (a) salary_min, salary_max and min_years_experience above 2147483647 return 400 validation_error on create and PATCH. (b) min_salary above 2147483647 returns 400 validation_error. (c) A null character in q or location returns 400 validation_error. (d) The apply notification message stays "<username> applied for <title>" (A13b), but if longer than 255 characters it is cut to 255, so apply never fails because of message length. Reason: bad input must never cause a 500.
+
+A19. Server error logging. config/settings.py gets a LOGGING setting that prints errors to the console, so the tracebacks that the 500 handler logs (failure rule on 500 errors) are visible on the server. Console only, no files, no new packages. Files allowed: config/settings.py. No change to endpoint behavior.
+
+A19. Server error logging. config/settings.py gets a LOGGING setting that prints errors to the console, so the tracebacks that the 500 handler logs are visible on the server. Console only, no files, no new packages. Files allowed: config/settings.py. No change to endpoint behavior. Tests: applications/tests_logging.py.
+
+A20. The route inventory test in applications/tests_project.py, test_project_exposes_only_contract_routes_and_the_two_doc_routes, may be edited so its expected set also contains the catch-all route added by A17 (pattern ^(?P<path>.*)$, returns JSON not_found). No other test is changed. Reason: the A17 catch-all is a deliberate route, so the inventory test must expect it.
