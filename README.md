@@ -4,7 +4,7 @@ This API lets employers publish jobs and candidates find and apply for them. It 
 
 ## Features
 
-- Register and authenticate employer and candidate accounts with JWTs.
+- Register candidate accounts and authenticate users with JWTs. Employer accounts are promoted by a trusted administrator.
 - Create companies and publish, update, close, and search job listings.
 - Upload resumes and submit applications.
 - Let employers review applications, update their status, and view notifications.
@@ -113,7 +113,7 @@ Invoke-RestMethod -Method Post `
   -Body $body
 ```
 
-The body fields are `username`, `email`, `password`, and `role`. The role must be `employer` or `candidate`.
+The body fields are `username`, `email`, and `password`. Public registration always creates a candidate account; a submitted `role` is ignored. Employer promotion is reserved for trusted administrators through Django Admin. Do not grant admin access to untrusted users.
 
 ### Create a job
 
