@@ -204,7 +204,9 @@ The status values are `applied`, `reviewing`, `shortlisted`, `rejected`, and `hi
 
 ## Resume upload rules
 
-Resume uploads use the `title` and `file` fields. The file name must end in `.pdf` or `.docx` (extension matching is case-insensitive), the file must not be empty, and its size must be no larger than 2 MB. PDF content must start with `%PDF-`; DOCX content must start with `PK`. Uploaded files are stored under `resumes/`.
+Resume uploads use the `title` and `file` fields. The file name must end in `.pdf` or `.docx` (extension matching is case-insensitive), the file must not be empty, and its size must be no larger than 2 MB. PDFs are parsed in strict mode and must contain at least one page. DOCX files must be valid ZIP packages with intact members, OOXML content types and relationships, and a parseable Word document part. Uploaded files are stored under `resumes/` using Django's configured file storage; the default development storage is the local `media/` directory. The API returns resume metadata and does not expose a public file URL.
+
+For production, configure a private object-storage backend and serve downloads only through an authenticated access path, such as short-lived signed URLs after checking resume ownership and application access. Encrypt stored files and define retention and deletion policies. File structure checks do not detect malware: quarantine uploads and scan them with an antivirus service before making them available to employers.
 
 ## Job search filters
 

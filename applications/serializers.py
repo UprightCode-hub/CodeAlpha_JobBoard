@@ -1,5 +1,9 @@
 import os
+import zipfile
+from io import BytesIO
+from xml.etree import ElementTree
 
+from pypdf import PdfReader
 from rest_framework import serializers
 
 from .models import Application, Notification, Resume
@@ -37,14 +41,79 @@ class ResumeUploadSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("The file must be no larger than 2 MB.")
 
         uploaded_file.seek(0)
-        # File names can be misleading, so check the content before storing the upload.
-        header = uploaded_file.read(5)
+        content = uploaded_file.read()
         uploaded_file.seek(0)
-        if extension == ".pdf" and not header.startswith(b"%PDF-"):
-            raise serializers.ValidationError("The PDF file content is invalid.")
-        if extension == ".docx" and not header.startswith(b"PK"):
-            raise serializers.ValidationError("The DOCX file content is invalid.")
+        if extension == ".pdf":
+            self._validate_pdf(content)
+        else:
+            self._validate_docx(content)
         return uploaded_file
+
+    @staticmethod
+    def _validate_pdf(content):
+        try:
+            reader = PdfReader(BytesIO(content), strict=True)
+            if not reader.pages:
+                raise ValueError("PDF has no pages")
+        except Exception as exc:
+            raise serializers.ValidationError(
+                "The PDF file content is invalid."
+            ) from exc
+
+    @staticmethod
+    def _validate_docx(content):
+        required_parts = {
+            "[Content_Types].xml",
+            "_rels/.rels",
+            "word/document.xml",
+        }
+        try:
+            with zipfile.ZipFile(BytesIO(content)) as package:
+                parts = set(package.namelist())
+                if not required_parts.issubset(parts):
+                    raise ValueError("DOCX package is missing required parts")
+                if (
+                    sum(item.file_size for item in package.infolist())
+                    > 20 * 1024 * 1024
+                ):
+                    raise ValueError("DOCX package expands beyond the allowed size")
+                if package.testzip() is not None:
+                    raise ValueError("DOCX package has a corrupt member")
+
+                content_types = ElementTree.fromstring(
+                    package.read("[Content_Types].xml")
+                )
+                document = ElementTree.fromstring(package.read("word/document.xml"))
+                relationships = ElementTree.fromstring(package.read("_rels/.rels"))
+                if content_types.tag.rsplit("}", 1)[-1] != "Types":
+                    raise ValueError("Invalid OOXML content types")
+                main_document_type = (
+                    "application/vnd.openxmlformats-officedocument."
+                    "wordprocessingml.document.main+xml"
+                )
+                if not any(
+                    item.attrib.get("PartName") == "/word/document.xml"
+                    and item.attrib.get("ContentType") == main_document_type
+                    for item in content_types
+                ):
+                    raise ValueError("OOXML package does not declare a Word document")
+                if document.tag.rsplit("}", 1)[-1] != "document" or not any(
+                    child.tag.rsplit("}", 1)[-1] == "body" for child in document
+                ):
+                    raise ValueError("Invalid Word document XML")
+                if relationships.tag.rsplit("}", 1)[-1] != "Relationships":
+                    raise ValueError("Invalid OOXML package relationships")
+        except (
+            OSError,
+            ValueError,
+            zipfile.BadZipFile,
+            zipfile.LargeZipFile,
+            ElementTree.ParseError,
+            RuntimeError,
+        ) as exc:
+            raise serializers.ValidationError(
+                "The DOCX file content is invalid."
+            ) from exc
 
 
 class StrictIdField(serializers.Field):
@@ -74,7 +143,9 @@ class ApplicationSerializer(serializers.ModelSerializer):
     job = serializers.IntegerField(source="job_id", read_only=True)
     job_title = serializers.CharField(source="job.title", read_only=True)
     company_name = serializers.CharField(source="job.company.name", read_only=True)
-    candidate_username = serializers.CharField(source="candidate.username", read_only=True)
+    candidate_username = serializers.CharField(
+        source="candidate.username", read_only=True
+    )
     resume = serializers.IntegerField(source="resume_id", read_only=True)
 
     class Meta:
