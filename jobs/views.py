@@ -1,5 +1,6 @@
 from typing import Any
 
+from django.db import IntegrityError, transaction
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import (
     OpenApiParameter,
@@ -152,7 +153,13 @@ class CompanyView(APIView):
             raise ValidationError("This employer already has a company.")
         serializer = CompanySerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save(owner=request.user)
+        try:
+            with transaction.atomic():
+                serializer.save(owner=request.user)
+        except IntegrityError as exc:
+            if Company.objects.filter(owner=request.user).exists():
+                raise ValidationError("This employer already has a company.") from exc
+            raise
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     @extend_schema(
