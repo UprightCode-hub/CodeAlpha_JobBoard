@@ -34,9 +34,7 @@ This API lets employers publish jobs and candidates find and apply for them. It 
    pip install -r requirements.txt
    ```
 
-3. Create a PostgreSQL database and user, then copy `.env.example` to `.env` and set the local database values and a local `SECRET_KEY`.
-
-   Set `DEBUG=True` for local use. Running with `DEBUG=False` is not supported yet, because `ALLOWED_HOSTS` is not configurable and the server would reject every request.
+3. Create a PostgreSQL database and user, then copy `.env.example` to `.env` and set the local database values and a unique `SECRET_KEY`. The example configures `DEBUG=True` and local `ALLOWED_HOSTS` for development. Set `DEBUG=False` and provide a strong `SECRET_KEY` and comma-separated `ALLOWED_HOSTS` for deployment; HTTPS redirects, secure cookies, and HSTS default to enabled in that mode. Set `DATABASE_URL` instead of the individual `DB_*` variables if preferred.
 
 4. Apply the database migrations:
 
