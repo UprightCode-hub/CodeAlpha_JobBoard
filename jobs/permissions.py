@@ -1,15 +1,7 @@
+from rest_framework.exceptions import NotFound
 from rest_framework.permissions import BasePermission
 
-
-class IsEmployer(BasePermission):
-    """Allow access to authenticated employer accounts."""
-
-    def has_permission(self, request, view):
-        return bool(
-            request.user
-            and request.user.is_authenticated
-            and getattr(request.user, "role", None) == "employer"
-        )
+from accounts.permissions import IsEmployer
 
 
 class IsJobOwner(BasePermission):
@@ -17,3 +9,16 @@ class IsJobOwner(BasePermission):
 
     def has_object_permission(self, request, view, obj):
         return obj.company.owner_id == request.user.pk
+
+
+class IsOpenJobOrOwner(BasePermission):
+    """Allow open jobs to everyone and closed jobs only to their employer."""
+
+    def has_object_permission(self, request, view, obj):
+        if obj.is_open:
+            return True
+        if IsEmployer().has_permission(
+            request, view
+        ) and IsJobOwner().has_object_permission(request, view, obj):
+            return True
+        raise NotFound("The requested resource was not found.")

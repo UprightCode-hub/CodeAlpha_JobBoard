@@ -7,16 +7,22 @@ from drf_spectacular.utils import (
     inline_serializer,
 )
 from rest_framework import serializers, status
-from rest_framework.exceptions import NotFound, ValidationError
+from rest_framework.exceptions import ValidationError
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from accounts.permissions import IsCandidate, IsEmployer
+from config.exceptions import CodedAPIException
 from jobs.models import Job
 
 from .models import Application, Notification, Resume
-from .permissions import IsCandidate, IsEmployer
+from .permissions import (
+    CanViewApplication,
+    IsApplicationJobOwner,
+    IsResumeOwner,
+)
 from .serializers import (
     ApplicationSerializer,
     ApplySerializer,
@@ -82,13 +88,6 @@ STATUS_REQUEST = inline_serializer(
 )
 
 
-def coded_error(code, message):
-    return Response(
-        {"error": {"code": code, "message": message}},
-        status=status.HTTP_400_BAD_REQUEST,
-    )
-
-
 class ResumeListCreateView(APIView):
     """List the candidate's resumes or upload a new resume."""
 
@@ -124,6 +123,11 @@ class ApplicationListCreateView(APIView):
 
     permission_classes = (IsAuthenticated,)
 
+    def get_permissions(self):
+        if self.request.method == "POST":
+            return [IsAuthenticated(), IsCandidate()]
+        return [IsAuthenticated()]
+
     @extend_schema(
         operation_id="applications_list",
         parameters=[PAGE_PARAMETER],
@@ -133,9 +137,9 @@ class ApplicationListCreateView(APIView):
         queryset = Application.objects.select_related(
             "job", "job__company", "candidate", "resume"
         )
-        if getattr(request.user, "role", None) == "candidate":
+        if IsCandidate().has_permission(request, self):
             queryset = queryset.filter(candidate=request.user)
-        elif getattr(request.user, "role", None) == "employer":
+        elif IsEmployer().has_permission(request, self):
             queryset = queryset.filter(job__company__owner=request.user)
         else:
             queryset = queryset.none()
@@ -152,17 +156,6 @@ class ApplicationListCreateView(APIView):
         responses={201: ApplicationSerializer},
     )
     def post(self, request):
-        if getattr(request.user, "role", None) != "candidate":
-            return Response(
-                {
-                    "error": {
-                        "code": "permission_denied",
-                        "message": "You do not have permission to perform this action.",
-                    }
-                },
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
         serializer = ApplySerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         values = serializer.validated_data
@@ -179,15 +172,15 @@ class ApplicationListCreateView(APIView):
             ) from exc
 
         if not job.is_open:
-            return coded_error(
+            raise CodedAPIException(
                 "job_closed", "This job is closed and cannot accept applications."
             )
-        if resume.candidate_id != request.user.pk:
-            return coded_error(
+        if not IsResumeOwner().has_object_permission(request, self, resume):
+            raise CodedAPIException(
                 "invalid_resume", "The selected resume does not belong to you."
             )
         if Application.objects.filter(candidate=request.user, job=job).exists():
-            return coded_error(
+            raise CodedAPIException(
                 "duplicate_application", "You have already applied for this job."
             )
 
@@ -203,14 +196,14 @@ class ApplicationListCreateView(APIView):
                     # Match the database column limit for notification messages.
                     message=f"{request.user.username} applied for {job.title}"[:255],
                 )
-        except IntegrityError:
+        except IntegrityError as exc:
             if (
                 Application.objects.filter(candidate=request.user, job=job).first()
                 is not None
             ):
-                return coded_error(
+                raise CodedAPIException(
                     "duplicate_application", "You have already applied for this job."
-                )
+                ) from exc
             raise
 
         application = Application.objects.select_related(
@@ -224,7 +217,7 @@ class ApplicationListCreateView(APIView):
 class ApplicationDetailView(APIView):
     """Return an application to its candidate or the job's employer."""
 
-    permission_classes = (IsAuthenticated,)
+    permission_classes = (IsAuthenticated, CanViewApplication)
 
     @extend_schema(
         operation_id="applications_detail",
@@ -237,23 +230,14 @@ class ApplicationDetailView(APIView):
             ),
             pk=pk,
         )
-        is_candidate = (
-            getattr(request.user, "role", None) == "candidate"
-            and application.candidate_id == request.user.pk
-        )
-        is_owner = (
-            getattr(request.user, "role", None) == "employer"
-            and application.job.company.owner_id == request.user.pk
-        )
-        if not (is_candidate or is_owner):
-            raise NotFound("The requested resource was not found.")
+        self.check_object_permissions(request, application)
         return Response(ApplicationSerializer(application).data)
 
 
 class ApplicationStatusView(APIView):
     """Update an application status for the job's employer."""
 
-    permission_classes = (IsAuthenticated,)
+    permission_classes = (IsAuthenticated, IsEmployer, IsApplicationJobOwner)
 
     @extend_schema(
         operation_id="application_status_update",
@@ -261,35 +245,13 @@ class ApplicationStatusView(APIView):
         responses={200: ApplicationSerializer},
     )
     def patch(self, request, pk):
-        if getattr(request.user, "role", None) == "candidate":
-            return Response(
-                {
-                    "error": {
-                        "code": "permission_denied",
-                        "message": "You do not have permission to perform this action.",
-                    }
-                },
-                status=status.HTTP_403_FORBIDDEN,
-            )
-        if getattr(request.user, "role", None) != "employer":
-            return Response(
-                {
-                    "error": {
-                        "code": "permission_denied",
-                        "message": "You do not have permission to perform this action.",
-                    }
-                },
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
         application = get_object_or_404(
             Application.objects.select_related(
                 "job", "job__company", "candidate", "resume"
             ),
             pk=pk,
         )
-        if application.job.company.owner_id != request.user.pk:
-            raise NotFound("The requested resource was not found.")
+        self.check_object_permissions(request, application)
 
         serializer = StatusSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -302,7 +264,7 @@ class ApplicationStatusView(APIView):
             "rejected": set(),
         }
         if target not in allowed.get(application.status, set()):
-            return coded_error(
+            raise CodedAPIException(
                 "invalid_transition", "This status transition is not allowed."
             )
 

@@ -2,10 +2,24 @@ import logging
 
 from django.http import JsonResponse
 from rest_framework import status
+from rest_framework.exceptions import APIException
 from rest_framework.response import Response
 from rest_framework.views import exception_handler as default_exception_handler
 
 logger = logging.getLogger("django.request")
+
+
+class CodedAPIException(APIException):
+    """A client error with a stable API error code."""
+
+    status_code = status.HTTP_400_BAD_REQUEST
+    default_detail = "The request was invalid. Please check the submitted data."
+    default_code = "validation_error"
+
+    def __init__(self, code, detail):
+        self.error_code = code
+        super().__init__(detail=detail, code=code)
+
 
 ERRORS_BY_STATUS = {
     status.HTTP_400_BAD_REQUEST: (
@@ -34,10 +48,14 @@ ERRORS_BY_STATUS = {
 def exception_handler(exc, context):
     response = default_exception_handler(exc, context)
     if response is not None:
-        code, message = ERRORS_BY_STATUS.get(
-            response.status_code,
-            ("server_error", "An unexpected server error occurred."),
-        )
+        code, message = getattr(exc, "error_code", None), getattr(exc, "detail", None)
+        if code is None:
+            code, message = ERRORS_BY_STATUS.get(
+                response.status_code,
+                ("server_error", "An unexpected server error occurred."),
+            )
+        if not isinstance(message, str):
+            message = str(message)
         return Response(
             {"error": {"code": code, "message": message}},
             status=response.status_code,

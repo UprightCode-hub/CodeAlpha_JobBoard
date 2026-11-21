@@ -14,9 +14,11 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from accounts.permissions import IsEmployer
+
 from .filters import filter_jobs
 from .models import Company, Job
-from .permissions import IsEmployer, IsJobOwner
+from .permissions import IsJobOwner, IsOpenJobOrOwner
 from .serializers import CompanySerializer, JobReadSerializer, JobSerializer
 
 JOB_REQUEST_FIELDS: dict[str, serializers.Field[Any, Any, Any, Any]] = {
@@ -186,7 +188,7 @@ class JobCreateView(APIView):
 
     def get_permissions(self):
         if self.request.method == "GET":
-            return [AllowAny()]
+            return [AllowAny(), IsOpenJobOrOwner()]
         return [IsAuthenticated(), IsEmployer()]
 
     @extend_schema(
@@ -249,12 +251,7 @@ class JobUpdateView(OwnedJobView):
     )
     def get(self, request, pk):
         job = get_object_or_404(Job.objects.select_related("company"), pk=pk)
-        if not job.is_open and not (
-            request.user.is_authenticated
-            and getattr(request.user, "role", None) == "employer"
-            and job.company.owner_id == request.user.pk
-        ):
-            raise NotFound("The requested resource was not found.")
+        self.check_object_permissions(request, job)
         return Response(JobReadSerializer(job).data)
 
     @extend_schema(
