@@ -2,11 +2,11 @@ from django.db import IntegrityError, transaction
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import (
     OpenApiParameter,
+    OpenApiRequest,
     OpenApiTypes,
     extend_schema,
-    inline_serializer,
 )
-from rest_framework import serializers, status
+from rest_framework import status
 from rest_framework.exceptions import ValidationError
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
@@ -24,9 +24,12 @@ from .permissions import (
     IsResumeOwner,
 )
 from .serializers import (
+    ApplicationListSerializer,
     ApplicationSerializer,
     ApplySerializer,
+    NotificationListSerializer,
     NotificationSerializer,
+    ResumeListSerializer,
     ResumeSerializer,
     ResumeUploadSerializer,
     StatusSerializer,
@@ -37,55 +40,22 @@ PAGE_PARAMETER = OpenApiParameter(
     OpenApiTypes.INT,
     OpenApiParameter.QUERY,
 )
-RESUME_LIST_RESPONSE = inline_serializer(
-    name="ResumeListResponse",
-    fields={
-        "count": serializers.IntegerField(),
-        "next": serializers.URLField(allow_null=True),
-        "previous": serializers.URLField(allow_null=True),
-        "results": ResumeSerializer(many=True),
-    },
-)
-APPLICATION_LIST_RESPONSE = inline_serializer(
-    name="ApplicationListResponse",
-    fields={
-        "count": serializers.IntegerField(),
-        "next": serializers.URLField(allow_null=True),
-        "previous": serializers.URLField(allow_null=True),
-        "results": ApplicationSerializer(many=True),
-    },
-)
-NOTIFICATION_LIST_RESPONSE = inline_serializer(
-    name="NotificationListResponse",
-    fields={
-        "count": serializers.IntegerField(),
-        "next": serializers.URLField(allow_null=True),
-        "previous": serializers.URLField(allow_null=True),
-        "results": NotificationSerializer(many=True),
-    },
-)
-RESUME_UPLOAD_REQUEST = inline_serializer(
-    name="ResumeUploadRequest",
-    fields={
-        "title": serializers.CharField(),
-        "file": serializers.FileField(),
-    },
-)
-APPLY_REQUEST = inline_serializer(
-    name="ApplyRequest",
-    fields={
-        "job": serializers.IntegerField(),
-        "resume": serializers.IntegerField(),
-    },
-)
-STATUS_REQUEST = inline_serializer(
-    name="ApplicationStatusRequest",
-    fields={
-        "status": serializers.ChoiceField(
-            choices=("applied", "reviewing", "shortlisted", "rejected", "hired")
-        ),
-    },
-)
+RESUME_LIST_RESPONSE = ResumeListSerializer
+APPLICATION_LIST_RESPONSE = ApplicationListSerializer
+NOTIFICATION_LIST_RESPONSE = NotificationListSerializer
+RESUME_UPLOAD_REQUEST = {
+    "multipart/form-data": OpenApiRequest(
+        request=ResumeUploadSerializer,
+        encoding={
+            "file": {
+                "contentType": (
+                    "application/pdf, "
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                )
+            }
+        },
+    )
+}
 
 
 class ResumeListCreateView(APIView):
@@ -152,7 +122,7 @@ class ApplicationListCreateView(APIView):
 
     @extend_schema(
         operation_id="applications_create",
-        request=APPLY_REQUEST,
+        request=ApplySerializer,
         responses={201: ApplicationSerializer},
     )
     def post(self, request):
@@ -241,7 +211,7 @@ class ApplicationStatusView(APIView):
 
     @extend_schema(
         operation_id="application_status_update",
-        request=STATUS_REQUEST,
+        request=StatusSerializer,
         responses={200: ApplicationSerializer},
     )
     def patch(self, request, pk):

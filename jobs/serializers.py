@@ -12,6 +12,14 @@ class CompanySerializer(serializers.ModelSerializer):
         read_only_fields = ("id", "owner")
 
 
+class CompanyReadSerializer(serializers.ModelSerializer):
+    """Serialize the public company fields returned by the API."""
+
+    class Meta:
+        model = Company
+        fields = ("id", "name", "description")
+
+
 class JobSerializer(serializers.ModelSerializer):
     """Validate job creation and update fields."""
 
@@ -90,3 +98,12 @@ class JobReadSerializer(serializers.ModelSerializer):
             "created_at",
             "company_name",
         )
+
+
+class JobListSerializer(serializers.Serializer):
+    """Describe the paginated job response returned by list endpoints."""
+
+    count = serializers.IntegerField()
+    next = serializers.URLField(allow_null=True)
+    previous = serializers.URLField(allow_null=True)
+    results = JobReadSerializer(many=True)

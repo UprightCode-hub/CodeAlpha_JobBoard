@@ -1,14 +1,7 @@
-from typing import Any
-
 from django.db import IntegrityError, transaction
 from django.shortcuts import get_object_or_404
-from drf_spectacular.utils import (
-    OpenApiParameter,
-    OpenApiTypes,
-    extend_schema,
-    inline_serializer,
-)
-from rest_framework import serializers, status
+from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
+from rest_framework import status
 from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -20,97 +13,15 @@ from accounts.permissions import IsEmployer
 from .filters import filter_jobs
 from .models import Company, Job
 from .permissions import IsJobOwner, IsOpenJobOrOwner
-from .serializers import CompanySerializer, JobReadSerializer, JobSerializer
+from .serializers import (
+    CompanyReadSerializer,
+    CompanySerializer,
+    JobListSerializer,
+    JobReadSerializer,
+    JobSerializer,
+)
 
-JOB_REQUEST_FIELDS: dict[str, serializers.Field[Any, Any, Any, Any]] = {
-    "title": serializers.CharField(),
-    "description": serializers.CharField(),
-    "location": serializers.CharField(),
-    "job_type": serializers.ChoiceField(
-        choices=("full_time", "part_time", "contract", "internship")
-    ),
-    "work_model": serializers.ChoiceField(choices=("remote", "hybrid", "onsite")),
-    "experience_level": serializers.ChoiceField(choices=("entry", "mid", "senior")),
-    "min_years_experience": serializers.IntegerField(min_value=0, max_value=2147483647),
-    "salary_min": serializers.IntegerField(
-        min_value=0, max_value=2147483647, allow_null=True, required=False
-    ),
-    "salary_max": serializers.IntegerField(
-        min_value=0, max_value=2147483647, allow_null=True, required=False
-    ),
-}
-JOB_CREATE_REQUEST = inline_serializer(
-    name="JobCreateRequest",
-    fields=JOB_REQUEST_FIELDS,
-)
-JOB_PATCH_REQUEST = inline_serializer(
-    name="JobPatchRequest",
-    fields={
-        "title": serializers.CharField(required=False),
-        "description": serializers.CharField(required=False),
-        "location": serializers.CharField(required=False),
-        "job_type": serializers.ChoiceField(
-            choices=("full_time", "part_time", "contract", "internship"),
-            required=False,
-        ),
-        "work_model": serializers.ChoiceField(
-            choices=("remote", "hybrid", "onsite"),
-            required=False,
-        ),
-        "experience_level": serializers.ChoiceField(
-            choices=("entry", "mid", "senior"),
-            required=False,
-        ),
-        "min_years_experience": serializers.IntegerField(
-            min_value=0,
-            max_value=2147483647,
-            required=False,
-        ),
-        "salary_min": serializers.IntegerField(
-            min_value=0,
-            max_value=2147483647,
-            allow_null=True,
-            required=False,
-        ),
-        "salary_max": serializers.IntegerField(
-            min_value=0,
-            max_value=2147483647,
-            allow_null=True,
-            required=False,
-        ),
-    },
-)
-JOB_LIST_RESPONSE = inline_serializer(
-    name="JobListResponse",
-    fields={
-        "count": serializers.IntegerField(),
-        "next": serializers.URLField(allow_null=True),
-        "previous": serializers.URLField(allow_null=True),
-        "results": JobReadSerializer(many=True),
-    },
-)
-COMPANY_REQUEST = inline_serializer(
-    name="CompanyRequest",
-    fields={
-        "name": serializers.CharField(),
-        "description": serializers.CharField(),
-    },
-)
-COMPANY_PATCH_REQUEST = inline_serializer(
-    name="CompanyPatchRequest",
-    fields={
-        "name": serializers.CharField(required=False),
-        "description": serializers.CharField(required=False),
-    },
-)
-COMPANY_RESPONSE = inline_serializer(
-    name="CompanyResponse",
-    fields={
-        "id": serializers.IntegerField(),
-        "name": serializers.CharField(),
-        "description": serializers.CharField(),
-    },
-)
+JOB_LIST_RESPONSE = JobListSerializer
 JOB_FILTER_PARAMETERS = [
     OpenApiParameter("q", OpenApiTypes.STR, OpenApiParameter.QUERY),
     OpenApiParameter("location", OpenApiTypes.STR, OpenApiParameter.QUERY),
@@ -145,8 +56,8 @@ class CompanyView(APIView):
 
     @extend_schema(
         operation_id="company_create",
-        request=COMPANY_REQUEST,
-        responses={201: COMPANY_RESPONSE},
+        request=CompanySerializer,
+        responses={201: CompanyReadSerializer},
     )
     def post(self, request):
         if Company.objects.filter(owner=request.user).exists():
@@ -160,27 +71,30 @@ class CompanyView(APIView):
             if Company.objects.filter(owner=request.user).exists():
                 raise ValidationError("This employer already has a company.") from exc
             raise
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(
+            CompanyReadSerializer(serializer.instance).data,
+            status=status.HTTP_201_CREATED,
+        )
 
     @extend_schema(
         operation_id="company_retrieve",
-        responses={200: COMPANY_RESPONSE},
+        responses={200: CompanyReadSerializer},
     )
     def get(self, request):
         company = self.get_company(request.user)
-        return Response(CompanySerializer(company).data)
+        return Response(CompanyReadSerializer(company).data)
 
     @extend_schema(
         operation_id="company_update",
-        request=COMPANY_PATCH_REQUEST,
-        responses={200: COMPANY_RESPONSE},
+        request=CompanySerializer(partial=True),
+        responses={200: CompanyReadSerializer},
     )
     def patch(self, request):
         company = self.get_company(request.user)
         serializer = CompanySerializer(company, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        return Response(serializer.data)
+        return Response(CompanyReadSerializer(serializer.instance).data)
 
     @staticmethod
     def get_company(owner):
@@ -219,7 +133,7 @@ class JobCreateView(APIView):
 
     @extend_schema(
         operation_id="jobs_create",
-        request=JOB_CREATE_REQUEST,
+        request=JobSerializer,
         responses={201: JobReadSerializer},
     )
     def post(self, request):
@@ -263,7 +177,7 @@ class JobUpdateView(OwnedJobView):
 
     @extend_schema(
         operation_id="jobs_update",
-        request=JOB_PATCH_REQUEST,
+        request=JobSerializer(partial=True),
         responses={200: JobReadSerializer},
     )
     def patch(self, request, pk):

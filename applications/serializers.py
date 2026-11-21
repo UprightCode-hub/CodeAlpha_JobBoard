@@ -3,6 +3,8 @@ import zipfile
 from io import BytesIO
 from xml.etree import ElementTree
 
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import extend_schema_field
 from pypdf import PdfReader
 from rest_framework import serializers
 
@@ -19,7 +21,7 @@ class ResumeSerializer(serializers.ModelSerializer):
         fields = ("id", "title", "file_name", "uploaded_at")
         read_only_fields = ("id", "uploaded_at")
 
-    def get_file_name(self, obj):
+    def get_file_name(self, obj) -> str:
         return os.path.basename(obj.file.name)
 
 
@@ -116,6 +118,7 @@ class ResumeUploadSerializer(serializers.ModelSerializer):
             ) from exc
 
 
+@extend_schema_field(OpenApiTypes.INT)
 class StrictIdField(serializers.Field):
     """Accept integer identifiers without coercing other input types."""
 
@@ -177,3 +180,30 @@ class NotificationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Notification
         fields = ("id", "message", "application", "is_read", "created_at")
+
+
+class ResumeListSerializer(serializers.Serializer):
+    """Describe the paginated resume response."""
+
+    count = serializers.IntegerField()
+    next = serializers.URLField(allow_null=True)
+    previous = serializers.URLField(allow_null=True)
+    results = ResumeSerializer(many=True)
+
+
+class ApplicationListSerializer(serializers.Serializer):
+    """Describe the paginated application response."""
+
+    count = serializers.IntegerField()
+    next = serializers.URLField(allow_null=True)
+    previous = serializers.URLField(allow_null=True)
+    results = ApplicationSerializer(many=True)
+
+
+class NotificationListSerializer(serializers.Serializer):
+    """Describe the paginated notification response."""
+
+    count = serializers.IntegerField()
+    next = serializers.URLField(allow_null=True)
+    previous = serializers.URLField(allow_null=True)
+    results = NotificationSerializer(many=True)
