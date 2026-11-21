@@ -1,4 +1,5 @@
 """Tests for public job reads, filters, and pagination."""
+
 from datetime import timedelta
 
 from django.contrib.auth import get_user_model
@@ -14,9 +15,19 @@ JOBS = "/api/jobs/"
 MY_JOBS = "/api/my/jobs/"
 
 FIELDS = {
-    "id", "title", "description", "location", "job_type", "work_model",
-    "experience_level", "min_years_experience", "salary_min", "salary_max",
-    "is_open", "created_at", "company_name",
+    "id",
+    "title",
+    "description",
+    "location",
+    "job_type",
+    "work_model",
+    "experience_level",
+    "min_years_experience",
+    "salary_min",
+    "salary_max",
+    "is_open",
+    "created_at",
+    "company_name",
 }
 
 
@@ -35,39 +46,70 @@ class ReadBase(APITestCase):
         self.emp2 = make_user("emp2", "employer")
         self.cand = make_user("cand", "candidate")
         self.c1 = Company.objects.create(owner=self.emp1, name="Acme", description="d")
-        self.c2 = Company.objects.create(owner=self.emp2, name="Globex", description="d")
+        self.c2 = Company.objects.create(
+            owner=self.emp2, name="Globex", description="d"
+        )
         now = timezone.now()
         self.j1 = self.make_job(
-            self.c1, now - timedelta(days=10),
-            title="Python Developer", description="Build Django APIs",
-            location="Lagos, Nigeria", job_type="full_time", work_model="remote",
-            experience_level="entry", min_years_experience=0,
-            salary_min=100000, salary_max=150000,
+            self.c1,
+            now - timedelta(days=10),
+            title="Python Developer",
+            description="Build Django APIs",
+            location="Lagos, Nigeria",
+            job_type="full_time",
+            work_model="remote",
+            experience_level="entry",
+            min_years_experience=0,
+            salary_min=100000,
+            salary_max=150000,
         )
         self.j2 = self.make_job(
-            self.c1, now - timedelta(days=5),
-            title="Java Engineer", description="Spring boot services",
-            location="Abuja", job_type="part_time", work_model="onsite",
-            experience_level="mid", min_years_experience=3,
-            salary_min=200000, salary_max=300000,
+            self.c1,
+            now - timedelta(days=5),
+            title="Java Engineer",
+            description="Spring boot services",
+            location="Abuja",
+            job_type="part_time",
+            work_model="onsite",
+            experience_level="mid",
+            min_years_experience=3,
+            salary_min=200000,
+            salary_max=300000,
         )
         self.j3 = self.make_job(
-            self.c2, now - timedelta(hours=1),
-            title="Data Analyst", description="Analyse sales data",
-            location="Lagos", job_type="contract", work_model="hybrid",
-            experience_level="senior", min_years_experience=5,
+            self.c2,
+            now - timedelta(hours=1),
+            title="Data Analyst",
+            description="Analyse sales data",
+            location="Lagos",
+            job_type="contract",
+            work_model="hybrid",
+            experience_level="senior",
+            min_years_experience=5,
         )
         self.j4 = self.make_job(
-            self.c2, now - timedelta(days=4),
-            title="Closed Role", description="Gone",
-            location="Lagos", job_type="full_time", work_model="remote",
-            experience_level="mid", min_years_experience=1, is_open=False,
+            self.c2,
+            now - timedelta(days=4),
+            title="Closed Role",
+            description="Gone",
+            location="Lagos",
+            job_type="full_time",
+            work_model="remote",
+            experience_level="mid",
+            min_years_experience=1,
+            is_open=False,
         )
         self.j5 = self.make_job(
-            self.c1, now - timedelta(days=3),
-            title="Old Role", description="Gone too",
-            location="Ibadan", job_type="full_time", work_model="onsite",
-            experience_level="mid", min_years_experience=1, is_open=False,
+            self.c1,
+            now - timedelta(days=3),
+            title="Old Role",
+            description="Gone too",
+            location="Ibadan",
+            job_type="full_time",
+            work_model="onsite",
+            experience_level="mid",
+            min_years_experience=1,
+            is_open=False,
         )
 
     def make_job(self, company, created_at, **fields):
@@ -133,9 +175,14 @@ class JobListTests(ReadBase):
     def test_pagination_ten_per_page(self):
         for i in range(9):
             Job.objects.create(
-                company=self.c1, title=f"Extra {i}", description="d",
-                location="Lagos", job_type="full_time", work_model="remote",
-                experience_level="mid", min_years_experience=1,
+                company=self.c1,
+                title=f"Extra {i}",
+                description="d",
+                location="Lagos",
+                job_type="full_time",
+                work_model="remote",
+                experience_level="mid",
+                min_years_experience=1,
             )
         page1 = self.client.get(JOBS).json()
         page2 = self.client.get(JOBS + "?page=2").json()
@@ -150,9 +197,14 @@ class JobListTests(ReadBase):
     def test_list_does_not_query_company_once_per_job(self):
         for i in range(9):
             Job.objects.create(
-                company=self.c2 if i % 2 else self.c1, title=f"Extra {i}",
-                description="d", location="Lagos", job_type="full_time",
-                work_model="remote", experience_level="mid", min_years_experience=1,
+                company=self.c2 if i % 2 else self.c1,
+                title=f"Extra {i}",
+                description="d",
+                location="Lagos",
+                job_type="full_time",
+                work_model="remote",
+                experience_level="mid",
+                min_years_experience=1,
             )
         with CaptureQueriesContext(connection) as ctx:
             r = self.client.get(JOBS)

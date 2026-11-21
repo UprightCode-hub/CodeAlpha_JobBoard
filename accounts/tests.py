@@ -1,7 +1,10 @@
 """Tests for account registration, authentication, and current-user APIs."""
+
 from datetime import timedelta
+from typing import Any
 
 from django.contrib.auth import get_user_model
+from django.test import TestCase
 from rest_framework.test import APITestCase
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 
@@ -23,8 +26,8 @@ def good_payload(**overrides):
     return data
 
 
-class ErrorShapeMixin:
-    def assert_error(self, response, status, code):
+class ErrorShapeMixin(TestCase):
+    def assert_error(self, response: Any, status: int, code: str) -> None:
         self.assertEqual(response.status_code, status)
         body = response.json()
         self.assertIn("error", body)
@@ -75,9 +78,7 @@ class RegisterTests(ErrorShapeMixin, APITestCase):
 
     def test_duplicate_email_rejected(self):
         self.client.post(REGISTER, good_payload(), format="json")
-        r = self.client.post(
-            REGISTER, good_payload(username="grace"), format="json"
-        )
+        r = self.client.post(REGISTER, good_payload(username="grace"), format="json")
         self.assert_error(r, 400, "validation_error")
 
     def test_invalid_role_rejected(self):
@@ -193,9 +194,7 @@ class MalformedInputTests(ErrorShapeMixin, APITestCase):
         self.assert_error(r, 400, "validation_error")
 
     def test_wrong_types_on_register(self):
-        r = self.client.post(
-            REGISTER, good_payload(username=["a", "b"]), format="json"
-        )
+        r = self.client.post(REGISTER, good_payload(username=["a", "b"]), format="json")
         self.assert_error(r, 400, "validation_error")
 
     def test_login_with_missing_fields(self):

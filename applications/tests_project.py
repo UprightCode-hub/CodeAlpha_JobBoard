@@ -1,4 +1,5 @@
-"""Tests for project configuration, demo data, API docs, routes, and documentation files."""
+"""Tests for project configuration, demo data, API docs, routes, and docs."""
+
 import io
 import re
 from contextlib import redirect_stdout
@@ -7,6 +8,7 @@ from django.conf import settings
 from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
+from django.db.models import Model
 from django.test import TestCase
 from django.urls import get_resolver, reverse
 
@@ -34,7 +36,14 @@ API_ROUTES = {
 }
 DOC_ROUTES = {"api/schema/", "api/docs/"}
 
-MODELS = [User, Company, Job, Resume, Application, Notification]
+MODELS: list[type[Model]] = [
+    User,
+    Company,
+    Job,
+    Resume,
+    Application,
+    Notification,
+]
 
 
 def collect_routes(patterns, prefix=""):
@@ -70,8 +79,11 @@ class AdminTests(TestCase):
 
     def test_admin_list_pages_and_search_load_for_a_superuser(self):
         boss = User.objects.create(
-            username="boss", email="boss@example.com", role="employer",
-            is_staff=True, is_superuser=True,
+            username="boss",
+            email="boss@example.com",
+            role="employer",
+            is_staff=True,
+            is_superuser=True,
         )
         self.client.force_login(boss)
         for model in MODELS:
@@ -101,7 +113,9 @@ class SeedDemoTests(TestCase):
 
     def test_the_three_jobs_differ_in_their_filters(self):
         run_seed()
-        combos = {(j.job_type, j.work_model, j.experience_level) for j in Job.objects.all()}
+        combos = {
+            (j.job_type, j.work_model, j.experience_level) for j in Job.objects.all()
+        }
         self.assertEqual(len(combos), 3)
 
     def test_seeded_jobs_follow_api_rules(self):
@@ -153,7 +167,9 @@ class ApiDocsTests(TestCase):
         wanted = {"/" + route for route in API_ROUTES}
         wanted = {re.sub(r"<int:pk>", "{}", p) for p in wanted}
         got = {re.sub(r"\{[^}]+\}", "{}", p) for p in r.json()["paths"]}
-        self.assertTrue(wanted.issubset(got), f"missing from schema: {sorted(wanted - got)}")
+        self.assertTrue(
+            wanted.issubset(got), f"missing from schema: {sorted(wanted - got)}"
+        )
 
 
 class EndpointInventoryTests(TestCase):
@@ -168,7 +184,14 @@ class EndpointInventoryTests(TestCase):
 class DocsFilesTests(TestCase):
     def test_env_example_has_the_variable_names_and_no_dashes(self):
         text = read(".env.example")
-        for name in ["SECRET_KEY", "DEBUG", "DB_NAME", "DB_USER", "DB_PASSWORD", "DB_HOST", "DB_PORT"]:
+        for name in [
+            "SECRET_KEY",
+            "DEBUG",
+            "DB_NAME",
+            "DB_USER",
+            "DB_PASSWORD",
+            "DB_HOST",
+            "DB_PORT",
+        ]:
             self.assertRegex(text, rf"(?m)^{name}=")
         self.assertNotIn("\u2014", text)
-

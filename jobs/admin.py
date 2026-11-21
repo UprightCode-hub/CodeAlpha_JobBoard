@@ -11,6 +11,13 @@ class CompanyAdmin(admin.ModelAdmin):
 
 @admin.register(Job)
 class JobAdmin(admin.ModelAdmin):
-    list_display = ("title", "company", "job_type", "work_model", "is_open", "created_at")
+    list_display = (
+        "title",
+        "company",
+        "job_type",
+        "work_model",
+        "is_open",
+        "created_at",
+    )
     search_fields = ("title", "description", "location", "company__name")
     list_filter = ("job_type", "work_model", "experience_level", "is_open")

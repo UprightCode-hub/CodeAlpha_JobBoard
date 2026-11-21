@@ -43,7 +43,9 @@ def filter_jobs(queryset, params):
     posted_within_days = params.get("posted_within_days")
     if posted_within_days is not None:
         days = _positive_integer(posted_within_days, "posted_within_days")
-        queryset = queryset.filter(created_at__gte=timezone.now() - timedelta(days=days))
+        queryset = queryset.filter(
+            created_at__gte=timezone.now() - timedelta(days=days)
+        )
 
     return queryset
 
@@ -51,8 +53,8 @@ def filter_jobs(queryset, params):
 def _positive_integer(value, field, allow_zero=False, max_value=None):
     try:
         parsed = int(value)
-    except (TypeError, ValueError):
-        raise ValidationError({field: "A valid integer is required."})
+    except (TypeError, ValueError) as exc:
+        raise ValidationError({field: "A valid integer is required."}) from exc
     if parsed < (0 if allow_zero else 1):
         raise ValidationError({field: "A valid integer is required."})
     if max_value is not None and parsed > max_value:

@@ -1,21 +1,46 @@
 """Tests for the generated OpenAPI schema and its documented API fields."""
+
 import re
 
 from django.test import TestCase
 
 JOB_FIELDS = {
-    "id", "title", "description", "location", "job_type", "work_model",
-    "experience_level", "min_years_experience", "salary_min", "salary_max",
-    "is_open", "created_at", "company_name",
+    "id",
+    "title",
+    "description",
+    "location",
+    "job_type",
+    "work_model",
+    "experience_level",
+    "min_years_experience",
+    "salary_min",
+    "salary_max",
+    "is_open",
+    "created_at",
+    "company_name",
 }
 JOB_WRITE_FIELDS = {
-    "title", "description", "location", "job_type", "work_model",
-    "experience_level", "min_years_experience", "salary_min", "salary_max",
+    "title",
+    "description",
+    "location",
+    "job_type",
+    "work_model",
+    "experience_level",
+    "min_years_experience",
+    "salary_min",
+    "salary_max",
 }
 RESUME_FIELDS = {"id", "title", "file_name", "uploaded_at"}
 APPLICATION_FIELDS = {
-    "id", "job", "job_title", "company_name", "candidate_username",
-    "resume", "status", "applied_at", "updated_at",
+    "id",
+    "job",
+    "job_title",
+    "company_name",
+    "candidate_username",
+    "resume",
+    "status",
+    "applied_at",
+    "updated_at",
 }
 NOTIFICATION_FIELDS = {"id", "message", "application", "is_read", "created_at"}
 LIST_KEYS = {"count", "next", "previous", "results"}
@@ -27,8 +52,14 @@ FILTER_ENUMS = {
     "experience_level": {"entry", "mid", "senior"},
 }
 FILTER_PARAMS = {
-    "q", "location", "job_type", "work_model", "experience_level",
-    "min_salary", "posted_within_days", "page",
+    "q",
+    "location",
+    "job_type",
+    "work_model",
+    "experience_level",
+    "min_salary",
+    "posted_within_days",
+    "page",
 }
 
 # (path, method, success code, "list" or "object", exact fields or None)
@@ -84,12 +115,18 @@ class SchemaTests(TestCase):
                 return node
 
     def op(self, path, method):
-        self.assertIn((path, method), self.ops, f"{method.upper()} {path} is missing from the schema")
+        self.assertIn(
+            (path, method),
+            self.ops,
+            f"{method.upper()} {path} is missing from the schema",
+        )
         return self.ops[(path, method)]
 
     def request_props(self, path, method, content_type="application/json"):
         operation = self.op(path, method)
-        self.assertIn("requestBody", operation, f"{method.upper()} {path} has no request body")
+        self.assertIn(
+            "requestBody", operation, f"{method.upper()} {path} has no request body"
+        )
         content = operation["requestBody"]["content"]
         self.assertIn(content_type, content)
         return self.resolve(content[content_type]["schema"]).get("properties", {})
@@ -98,7 +135,9 @@ class SchemaTests(TestCase):
         operation = self.op(path, method)
         self.assertIn(code, operation["responses"])
         response = operation["responses"][code]
-        self.assertIn("content", response, f"{method.upper()} {path} {code} has no response body")
+        self.assertIn(
+            "content", response, f"{method.upper()} {path} {code} has no response body"
+        )
         return self.resolve(response["content"]["application/json"]["schema"])
 
     def query_params(self, path, method):
@@ -113,8 +152,18 @@ class SchemaTests(TestCase):
         for method, path in [("post", "/api/jobs/"), ("patch", "/api/jobs/{}/")]:
             with self.subTest(method=method, path=path):
                 props = set(self.request_props(path, method))
-                self.assertTrue(JOB_WRITE_FIELDS.issubset(props), f"missing: {sorted(JOB_WRITE_FIELDS - props)}")
-                for forbidden in ("is_open", "company", "owner", "id", "created_at", "company_name"):
+                self.assertTrue(
+                    JOB_WRITE_FIELDS.issubset(props),
+                    f"missing: {sorted(JOB_WRITE_FIELDS - props)}",
+                )
+                for forbidden in (
+                    "is_open",
+                    "company",
+                    "owner",
+                    "id",
+                    "created_at",
+                    "company_name",
+                ):
                     self.assertNotIn(forbidden, props)
 
     def test_company_bodies(self):
@@ -144,13 +193,23 @@ class SchemaTests(TestCase):
     # query parameters
     def test_job_list_documents_every_filter_and_page(self):
         params = self.query_params("/api/jobs/", "get")
-        self.assertTrue(FILTER_PARAMS.issubset(params), f"missing: {sorted(FILTER_PARAMS - set(params))}")
+        self.assertTrue(
+            FILTER_PARAMS.issubset(params),
+            f"missing: {sorted(FILTER_PARAMS - set(params))}",
+        )
         for name, values in FILTER_ENUMS.items():
             with self.subTest(param=name):
-                self.assertEqual(set(self.resolve(params[name]["schema"]).get("enum", [])), values)
+                self.assertEqual(
+                    set(self.resolve(params[name]["schema"]).get("enum", [])), values
+                )
 
     def test_other_lists_document_page(self):
-        for path in ["/api/my/jobs/", "/api/resumes/", "/api/applications/", "/api/notifications/"]:
+        for path in [
+            "/api/my/jobs/",
+            "/api/resumes/",
+            "/api/applications/",
+            "/api/notifications/",
+        ]:
             with self.subTest(path=path):
                 self.assertIn("page", self.query_params(path, "get"))
 

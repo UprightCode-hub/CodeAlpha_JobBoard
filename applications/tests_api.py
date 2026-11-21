@@ -1,4 +1,5 @@
 """Tests for resume uploads, applications, status updates, and notifications."""
+
 import shutil
 import tempfile
 from datetime import timedelta
@@ -23,8 +24,15 @@ MAX_BYTES = 2 * 1024 * 1024
 
 RESUME_FIELDS = {"id", "title", "file_name", "uploaded_at"}
 APPLICATION_FIELDS = {
-    "id", "job", "job_title", "company_name", "candidate_username",
-    "resume", "status", "applied_at", "updated_at",
+    "id",
+    "job",
+    "job_title",
+    "company_name",
+    "candidate_username",
+    "resume",
+    "status",
+    "applied_at",
+    "updated_at",
 }
 NOTIFICATION_FIELDS = {"id", "message", "application", "is_read", "created_at"}
 LIST_KEYS = {"count", "next", "previous", "results"}
@@ -40,8 +48,11 @@ ALL_STATUSES = list(ALLOWED_MOVES)
 
 
 def make_user(username, role):
-    # No password hashing: these tests log in with force_authenticate, and hashing is slow.
-    return User.objects.create(username=username, email=f"{username}@example.com", role=role)
+    # No password hashing: these tests log in with force_authenticate, and
+    # hashing is slow.
+    return User.objects.create(
+        username=username, email=f"{username}@example.com", role=role
+    )
 
 
 def pdf(name="cv.pdf", content=b"%PDF-1.4\nfake body\n"):
@@ -65,8 +76,12 @@ class Base(APITestCase):
         self.emp2 = make_user("emp2", "employer")
         self.cand = make_user("cand", "candidate")
         self.cand2 = make_user("cand2", "candidate")
-        self.company1 = Company.objects.create(owner=self.emp1, name="Acme", description="d")
-        self.company2 = Company.objects.create(owner=self.emp2, name="Globex", description="d")
+        self.company1 = Company.objects.create(
+            owner=self.emp1, name="Acme", description="d"
+        )
+        self.company2 = Company.objects.create(
+            owner=self.emp2, name="Globex", description="d"
+        )
         self.job = self.make_job()
         self.resume = self.make_resume(self.cand)
 
@@ -87,14 +102,18 @@ class Base(APITestCase):
         )
 
     def make_resume(self, owner, title="CV"):
-        return Resume.objects.create(candidate=owner, title=title, file="resumes/cv.pdf")
+        return Resume.objects.create(
+            candidate=owner, title=title, file="resumes/cv.pdf"
+        )
 
     def make_app(self, candidate=None, job=None, resume=None, status="applied"):
         candidate = candidate or self.cand
         return Application.objects.create(
             candidate=candidate,
             job=job or self.job,
-            resume=resume or Resume.objects.filter(candidate=candidate).first() or self.make_resume(candidate),
+            resume=resume
+            or Resume.objects.filter(candidate=candidate).first()
+            or self.make_resume(candidate),
             status=status,
         )
 
@@ -110,6 +129,7 @@ class Base(APITestCase):
 
     def stored_files(self):
         import os
+
         found = []
         for _root, _dirs, files in os.walk(self.media):
             found.extend(files)
@@ -128,6 +148,7 @@ class Base(APITestCase):
 
 
 # ---------------------------------------------------------------- resumes
+
 
 class ResumeUploadTests(Base):
     def upload(self, file=None, title="My CV", **extra):
@@ -165,7 +186,9 @@ class ResumeUploadTests(Base):
         r = self.upload(pdf(), candidate=self.cand.id)
         self.assertEqual(r.status_code, 201)
         self.assertEqual(Resume.objects.get(candidate=self.cand2).title, "My CV")
-        self.assertFalse(Resume.objects.filter(candidate=self.cand, title="My CV").exists())
+        self.assertFalse(
+            Resume.objects.filter(candidate=self.cand, title="My CV").exists()
+        )
 
     def test_employer_cannot_upload(self):
         self.login(self.emp1)
@@ -233,7 +256,9 @@ class ResumeUploadTests(Base):
 
     def test_file_sent_as_plain_text_rejected(self):
         self.login(self.cand2)
-        r = self.client.post(RESUMES, {"title": "x", "file": "not a file"}, format="multipart")
+        r = self.client.post(
+            RESUMES, {"title": "x", "file": "not a file"}, format="multipart"
+        )
         self.assert_error(r, 400, "validation_error")
 
     def test_missing_title_rejected(self):
@@ -284,6 +309,7 @@ class ResumeListTests(Base):
 
 
 # ---------------------------------------------------------------- apply
+
 
 class ApplyTests(Base):
     def test_candidate_applies(self):
@@ -371,7 +397,9 @@ class ApplyTests(Base):
     def test_bad_job_ids_rejected(self):
         self.login(self.cand)
         for bad in [999999, "abc", None, [1], {"a": 1}]:
-            r = self.client.post(APPLICATIONS, {"job": bad, "resume": self.resume.id}, format="json")
+            r = self.client.post(
+                APPLICATIONS, {"job": bad, "resume": self.resume.id}, format="json"
+            )
             self.assert_error(r, 400, "validation_error")
         r = self.client.post(APPLICATIONS, {"resume": self.resume.id}, format="json")
         self.assert_error(r, 400, "validation_error")
@@ -380,7 +408,9 @@ class ApplyTests(Base):
     def test_bad_resume_ids_rejected(self):
         self.login(self.cand)
         for bad in [999999, "abc", None, [1], {"a": 1}]:
-            r = self.client.post(APPLICATIONS, {"job": self.job.id, "resume": bad}, format="json")
+            r = self.client.post(
+                APPLICATIONS, {"job": self.job.id, "resume": bad}, format="json"
+            )
             self.assert_error(r, 400, "validation_error")
         r = self.client.post(APPLICATIONS, {"job": self.job.id}, format="json")
         self.assert_error(r, 400, "validation_error")
@@ -388,8 +418,12 @@ class ApplyTests(Base):
 
     def test_empty_and_malformed_bodies_rejected(self):
         self.login(self.cand)
-        self.assert_error(self.client.post(APPLICATIONS, {}, format="json"), 400, "validation_error")
-        r = self.client.generic("POST", APPLICATIONS, "{bad json", content_type="application/json")
+        self.assert_error(
+            self.client.post(APPLICATIONS, {}, format="json"), 400, "validation_error"
+        )
+        r = self.client.generic(
+            "POST", APPLICATIONS, "{bad json", content_type="application/json"
+        )
         self.assert_error(r, 400, "validation_error")
         self.assert_no_application_or_notification()
 
@@ -397,7 +431,12 @@ class ApplyTests(Base):
         self.login(self.cand)
         r = self.client.post(
             APPLICATIONS,
-            {"job": self.job.id, "resume": self.resume.id, "status": "hired", "candidate": self.cand2.id},
+            {
+                "job": self.job.id,
+                "resume": self.resume.id,
+                "status": "hired",
+                "candidate": self.cand2.id,
+            },
             format="json",
         )
         self.assertEqual(r.status_code, 201)
@@ -405,18 +444,23 @@ class ApplyTests(Base):
         self.assertEqual(application.status, "applied")
         self.assertEqual(application.candidate, self.cand)
 
-    # Check order from TASK_5: ids exist, then job open, then resume owner, then duplicate.
+    # Check order from TASK_5: ids exist, then job open, then resume owner,
+    # then duplicate.
     def test_missing_resume_beats_closed_job(self):
         closed = self.make_job(is_open=False)
         self.login(self.cand)
-        r = self.client.post(APPLICATIONS, {"job": closed.id, "resume": 999999}, format="json")
+        r = self.client.post(
+            APPLICATIONS, {"job": closed.id, "resume": 999999}, format="json"
+        )
         self.assert_error(r, 400, "validation_error")
 
     def test_closed_job_beats_invalid_resume(self):
         closed = self.make_job(is_open=False)
         other_resume = self.make_resume(self.cand2)
         self.login(self.cand)
-        self.assert_error(self.apply(job=closed, resume=other_resume), 400, "job_closed")
+        self.assert_error(
+            self.apply(job=closed, resume=other_resume), 400, "job_closed"
+        )
 
     def test_closed_job_beats_duplicate(self):
         self.make_app()
@@ -459,6 +503,7 @@ class ApplyTests(Base):
 
 
 # ---------------------------------------------------------------- list and detail
+
 
 class ApplicationListTests(Base):
     def test_candidate_sees_only_own_applications(self):
@@ -508,7 +553,9 @@ class ApplicationListTests(Base):
         expected = sorted(ids, reverse=True)
         for user in (self.cand, self.emp1):
             self.login(user)
-            got = [item["id"] for item in self.client.get(APPLICATIONS).json()["results"]]
+            got = [
+                item["id"] for item in self.client.get(APPLICATIONS).json()["results"]
+            ]
             self.assertEqual(got, expected)
 
     def test_pagination_10_per_page(self):
@@ -568,19 +615,24 @@ class ApplicationDetailTests(Base):
 
 # ---------------------------------------------------------------- status
 
+
 class StatusTests(Base):
     def status_url(self, application):
         return f"{APPLICATIONS}{application.id}/status/"
 
     def patch_status(self, application, value):
-        return self.client.patch(self.status_url(application), {"status": value}, format="json")
+        return self.client.patch(
+            self.status_url(application), {"status": value}, format="json"
+        )
 
     def test_every_allowed_move_works(self):
         self.login(self.emp1)
         for start, targets in ALLOWED_MOVES.items():
             for target in targets:
                 with self.subTest(start=start, target=target):
-                    app = self.make_app(job=self.make_job(title=f"{start}-{target}"), status=start)
+                    app = self.make_app(
+                        job=self.make_job(title=f"{start}-{target}"), status=start
+                    )
                     r = self.patch_status(app, target)
                     self.assertEqual(r.status_code, 200)
                     self.assertEqual(set(r.json().keys()), APPLICATION_FIELDS)
@@ -595,7 +647,9 @@ class StatusTests(Base):
                 if target in ALLOWED_MOVES[start]:
                     continue
                 with self.subTest(start=start, target=target):
-                    app = self.make_app(job=self.make_job(title=f"{start}-{target}"), status=start)
+                    app = self.make_app(
+                        job=self.make_job(title=f"{start}-{target}"), status=start
+                    )
                     before = Application.objects.get(pk=app.pk)
                     r = self.patch_status(app, target)
                     self.assert_error(r, 400, "invalid_transition")
@@ -606,7 +660,9 @@ class StatusTests(Base):
     def test_same_status_is_invalid_transition(self):
         self.login(self.emp1)
         app = self.make_app(status="reviewing")
-        self.assert_error(self.patch_status(app, "reviewing"), 400, "invalid_transition")
+        self.assert_error(
+            self.patch_status(app, "reviewing"), 400, "invalid_transition"
+        )
         app.refresh_from_db()
         self.assertEqual(app.status, "reviewing")
 
@@ -618,7 +674,9 @@ class StatusTests(Base):
                 self.assert_error(self.patch_status(app, bad), 400, "validation_error")
         r = self.client.patch(self.status_url(app), {}, format="json")
         self.assert_error(r, 400, "validation_error")
-        r = self.client.generic("PATCH", self.status_url(app), "{bad json", content_type="application/json")
+        r = self.client.generic(
+            "PATCH", self.status_url(app), "{bad json", content_type="application/json"
+        )
         self.assert_error(r, 400, "validation_error")
         app.refresh_from_db()
         self.assertEqual(app.status, "applied")
@@ -643,18 +701,23 @@ class StatusTests(Base):
 
     def test_unknown_application_is_404(self):
         self.login(self.emp1)
-        r = self.client.patch(f"{APPLICATIONS}999999/status/", {"status": "reviewing"}, format="json")
+        r = self.client.patch(
+            f"{APPLICATIONS}999999/status/", {"status": "reviewing"}, format="json"
+        )
         self.assert_error(r, 404, "not_found")
 
     def test_get_on_status_url_is_405(self):
         self.login(self.emp1)
         app = self.make_app()
-        self.assert_error(self.client.get(self.status_url(app)), 405, "method_not_allowed")
+        self.assert_error(
+            self.client.get(self.status_url(app)), 405, "method_not_allowed"
+        )
 
     def test_updated_at_changes_on_success(self):
         self.login(self.emp1)
         app = self.make_app()
-        # auto_now can give the same clock reading twice, so move the old value into the past.
+        # auto_now can give the same clock reading twice, so move the old value
+        # into the past.
         # .update() skips auto_now, so the PATCH is guaranteed a later value.
         before = timezone.now() - timedelta(minutes=1)
         Application.objects.filter(pk=app.pk).update(updated_at=before)
@@ -693,9 +756,12 @@ class StatusTests(Base):
 
 # ---------------------------------------------------------------- notifications
 
+
 class NotificationTests(Base):
     def make_note(self, recipient, application, message="msg"):
-        return Notification.objects.create(recipient=recipient, application=application, message=message)
+        return Notification.objects.create(
+            recipient=recipient, application=application, message=message
+        )
 
     def test_employer_sees_only_own_notifications(self):
         app1 = self.make_app()
@@ -730,8 +796,12 @@ class NotificationTests(Base):
         page1 = self.client.get(NOTIFICATIONS).json()
         self.assertEqual(page1["count"], 11)
         self.assertEqual(len(page1["results"]), 10)
-        self.assertEqual(len(self.client.get(NOTIFICATIONS, {"page": 2}).json()["results"]), 1)
-        self.assert_error(self.client.get(NOTIFICATIONS, {"page": 99}), 404, "not_found")
+        self.assertEqual(
+            len(self.client.get(NOTIFICATIONS, {"page": 2}).json()["results"]), 1
+        )
+        self.assert_error(
+            self.client.get(NOTIFICATIONS, {"page": 99}), 404, "not_found"
+        )
 
     def test_employer_with_none_gets_empty_list(self):
         self.login(self.emp2)
@@ -752,10 +822,13 @@ class NotificationTests(Base):
         self.login(self.emp1)
         body = self.client.get(NOTIFICATIONS).json()
         self.assertEqual(body["count"], 1)
-        self.assertEqual(body["results"][0]["message"], "cand applied for Backend Engineer")
+        self.assertEqual(
+            body["results"][0]["message"], "cand applied for Backend Engineer"
+        )
 
 
 # ---------------------------------------------------------------- closed job later
+
 
 class ClosedJobLaterTests(Base):
     def setUp(self):
@@ -774,7 +847,11 @@ class ClosedJobLaterTests(Base):
 
     def test_employer_can_still_change_status(self):
         self.login(self.emp1)
-        r = self.client.patch(f"{APPLICATIONS}{self.app.id}/status/", {"status": "reviewing"}, format="json")
+        r = self.client.patch(
+            f"{APPLICATIONS}{self.app.id}/status/",
+            {"status": "reviewing"},
+            format="json",
+        )
         self.assertEqual(r.status_code, 200)
         self.app.refresh_from_db()
         self.assertEqual(self.app.status, "reviewing")

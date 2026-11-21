@@ -4,7 +4,6 @@ from django.db import transaction
 from accounts.models import User
 from jobs.models import Company, Job
 
-
 DEMO_PASSWORD = "JobBoardDemo123!"
 
 DEMO_JOBS = (

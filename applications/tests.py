@@ -1,4 +1,5 @@
 """Tests for application, resume, and notification models and database constraints."""
+
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
 from django.db.models import ProtectedError, UniqueConstraint
@@ -24,7 +25,9 @@ class ModelBase(TestCase):
         self.emp = make_user("emp", "employer")
         self.cand1 = make_user("cand1", "candidate")
         self.cand2 = make_user("cand2", "candidate")
-        self.company = Company.objects.create(owner=self.emp, name="Acme", description="d")
+        self.company = Company.objects.create(
+            owner=self.emp, name="Acme", description="d"
+        )
         self.job1 = self.make_job("Backend Engineer")
         self.job2 = self.make_job("Data Analyst")
         self.resume1 = Resume.objects.create(
@@ -36,8 +39,13 @@ class ModelBase(TestCase):
 
     def make_job(self, title):
         return Job.objects.create(
-            company=self.company, title=title, description="d", location="Lagos",
-            job_type="full_time", work_model="remote", experience_level="mid",
+            company=self.company,
+            title=title,
+            description="d",
+            location="Lagos",
+            job_type="full_time",
+            work_model="remote",
+            experience_level="mid",
             min_years_experience=1,
         )
 
@@ -53,12 +61,16 @@ class ResumeTests(ModelBase):
         self.assertIsNotNone(self.resume1.uploaded_at)
 
     def test_candidate_can_have_many_resumes(self):
-        Resume.objects.create(candidate=self.cand1, title="CV 2", file="resumes/cv1b.pdf")
+        Resume.objects.create(
+            candidate=self.cand1, title="CV 2", file="resumes/cv1b.pdf"
+        )
         self.assertEqual(Resume.objects.filter(candidate=self.cand1).count(), 2)
 
     def test_deleting_candidate_without_applications_deletes_resumes(self):
         self.cand2.delete()
-        self.assertFalse(Resume.objects.filter(title="CV", candidate_id=self.cand2.pk).exists())
+        self.assertFalse(
+            Resume.objects.filter(title="CV", candidate_id=self.cand2.pk).exists()
+        )
         self.assertEqual(Resume.objects.count(), 1)
 
 
@@ -70,8 +82,13 @@ class ApplicationTests(ModelBase):
         self.assertIsNotNone(app.updated_at)
 
     def test_status_choices_are_exactly_the_agreed_values(self):
-        values = {value for value, _label in Application._meta.get_field("status").choices}
-        self.assertEqual(values, {"applied", "reviewing", "shortlisted", "rejected", "hired"})
+        choices = Application._meta.get_field("status").choices
+        if choices is None:
+            self.fail("Application status choices must be defined")
+        values = {value for value, _label in choices}
+        self.assertEqual(
+            values, {"applied", "reviewing", "shortlisted", "rejected", "hired"}
+        )
 
     def test_updated_at_moves_and_applied_at_stays(self):
         app = self.apply(self.cand1, self.job1, self.resume1)
@@ -91,9 +108,9 @@ class ApplicationTests(ModelBase):
 
     def test_unique_constraint_is_declared_with_the_agreed_name(self):
         found = [
-            c for c in Application._meta.constraints
-            if isinstance(c, UniqueConstraint)
-            and set(c.fields) == {"candidate", "job"}
+            c
+            for c in Application._meta.constraints
+            if isinstance(c, UniqueConstraint) and set(c.fields) == {"candidate", "job"}
         ]
         self.assertEqual(len(found), 1)
         self.assertEqual(found[0].name, "unique_application_per_candidate_job")

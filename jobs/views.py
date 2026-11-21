@@ -1,26 +1,25 @@
-from django.shortcuts import get_object_or_404
-from rest_framework import status
-from rest_framework.exceptions import NotFound, ValidationError
-from rest_framework.pagination import PageNumberPagination
-from rest_framework.permissions import AllowAny, IsAuthenticated
-from rest_framework import serializers
-from rest_framework.response import Response
-from rest_framework.views import APIView
+from typing import Any
 
+from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import (
     OpenApiParameter,
     OpenApiTypes,
     extend_schema,
     inline_serializer,
 )
+from rest_framework import serializers, status
+from rest_framework.exceptions import NotFound, ValidationError
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
+from .filters import filter_jobs
 from .models import Company, Job
 from .permissions import IsEmployer, IsJobOwner
-from .filters import filter_jobs
 from .serializers import CompanySerializer, JobReadSerializer, JobSerializer
 
-
-JOB_REQUEST_FIELDS = {
+JOB_REQUEST_FIELDS: dict[str, serializers.Field[Any, Any, Any, Any]] = {
     "title": serializers.CharField(),
     "description": serializers.CharField(),
     "location": serializers.CharField(),
@@ -30,8 +29,12 @@ JOB_REQUEST_FIELDS = {
     "work_model": serializers.ChoiceField(choices=("remote", "hybrid", "onsite")),
     "experience_level": serializers.ChoiceField(choices=("entry", "mid", "senior")),
     "min_years_experience": serializers.IntegerField(min_value=0, max_value=2147483647),
-    "salary_min": serializers.IntegerField(min_value=0, max_value=2147483647, allow_null=True, required=False),
-    "salary_max": serializers.IntegerField(min_value=0, max_value=2147483647, allow_null=True, required=False),
+    "salary_min": serializers.IntegerField(
+        min_value=0, max_value=2147483647, allow_null=True, required=False
+    ),
+    "salary_max": serializers.IntegerField(
+        min_value=0, max_value=2147483647, allow_null=True, required=False
+    ),
 }
 JOB_CREATE_REQUEST = inline_serializer(
     name="JobCreateRequest",
@@ -127,9 +130,7 @@ JOB_FILTER_PARAMETERS = [
         enum=("entry", "mid", "senior"),
     ),
     OpenApiParameter("min_salary", OpenApiTypes.INT, OpenApiParameter.QUERY),
-    OpenApiParameter(
-        "posted_within_days", OpenApiTypes.INT, OpenApiParameter.QUERY
-    ),
+    OpenApiParameter("posted_within_days", OpenApiTypes.INT, OpenApiParameter.QUERY),
     OpenApiParameter("page", OpenApiTypes.INT, OpenApiParameter.QUERY),
 ]
 
@@ -292,17 +293,15 @@ class MyJobsView(APIView):
 
     @extend_schema(
         operation_id="my_jobs_list",
-        parameters=[
-            OpenApiParameter("page", OpenApiTypes.INT, OpenApiParameter.QUERY)
-        ],
+        parameters=[OpenApiParameter("page", OpenApiTypes.INT, OpenApiParameter.QUERY)],
         responses={200: JOB_LIST_RESPONSE},
     )
     def get(self, request):
-        queryset = Job.objects.filter(company__owner=request.user).select_related(
-            "company"
-        ).order_by("-created_at")
+        queryset = (
+            Job.objects.filter(company__owner=request.user)
+            .select_related("company")
+            .order_by("-created_at")
+        )
         paginator = self.paginator = PageNumberPagination()
         page = paginator.paginate_queryset(queryset, request, view=self)
-        return paginator.get_paginated_response(
-            JobReadSerializer(page, many=True).data
-        )
+        return paginator.get_paginated_response(JobReadSerializer(page, many=True).data)

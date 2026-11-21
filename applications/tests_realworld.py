@@ -1,4 +1,5 @@
 """Tests for JSON 404 responses and job write response fields with DEBUG enabled."""
+
 from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
 from rest_framework.test import APITestCase
@@ -8,9 +9,19 @@ from jobs.models import Company
 User = get_user_model()
 
 JOB_RESPONSE_FIELDS = {
-    "id", "title", "description", "location", "job_type", "work_model",
-    "experience_level", "min_years_experience", "salary_min", "salary_max",
-    "is_open", "created_at", "company_name",
+    "id",
+    "title",
+    "description",
+    "location",
+    "job_type",
+    "work_model",
+    "experience_level",
+    "min_years_experience",
+    "salary_min",
+    "salary_max",
+    "is_open",
+    "created_at",
+    "company_name",
 }
 
 
@@ -47,8 +58,10 @@ class JobWriteResponseShapeTests(APITestCase):
 
     def setUp(self):
         self.employer = User.objects.create_user(
-            username="shape_employer", email="shape_employer@example.com",
-            password="StrongPass123!", role="employer",
+            username="shape_employer",
+            email="shape_employer@example.com",
+            password="StrongPass123!",
+            role="employer",
         )
         Company.objects.create(owner=self.employer, name="Shape Co", description="x")
         token = self.client.post(
@@ -62,9 +75,13 @@ class JobWriteResponseShapeTests(APITestCase):
         return self.client.post(
             "/api/jobs/",
             {
-                "title": "Shape Job", "description": "d", "location": "Lagos",
-                "job_type": "full_time", "work_model": "remote",
-                "experience_level": "entry", "min_years_experience": 0,
+                "title": "Shape Job",
+                "description": "d",
+                "location": "Lagos",
+                "job_type": "full_time",
+                "work_model": "remote",
+                "experience_level": "entry",
+                "min_years_experience": 0,
             },
             format="json",
         )
@@ -77,7 +94,9 @@ class JobWriteResponseShapeTests(APITestCase):
 
     def test_patch_response_has_job_read_fields(self):
         job_id = self.create_job().json()["id"]
-        response = self.client.patch(f"/api/jobs/{job_id}/", {"title": "Renamed"}, format="json")
+        response = self.client.patch(
+            f"/api/jobs/{job_id}/", {"title": "Renamed"}, format="json"
+        )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(set(response.json().keys()), JOB_RESPONSE_FIELDS)
         self.assertEqual(response.json()["title"], "Renamed")

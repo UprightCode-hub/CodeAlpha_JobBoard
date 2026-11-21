@@ -54,7 +54,8 @@ class Application(models.Model):
 
     class Meta:
         constraints = [
-            # Keep duplicate applications out of the database, including concurrent requests.
+            # Keep duplicate applications out of the database, including
+            # concurrent requests.
             models.UniqueConstraint(
                 fields=("candidate", "job"),
                 name="unique_application_per_candidate_job",

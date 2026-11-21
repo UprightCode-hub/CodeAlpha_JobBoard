@@ -1,4 +1,5 @@
 """Tests for company and job write endpoints."""
+
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
 from rest_framework.test import APITestCase
@@ -54,7 +55,9 @@ class Base(APITestCase):
 class CompanyTests(Base):
     def test_employer_creates_company(self):
         self.login(self.emp1)
-        r = self.client.post(COMPANY, {"name": "Acme", "description": "Makes things"}, format="json")
+        r = self.client.post(
+            COMPANY, {"name": "Acme", "description": "Makes things"}, format="json"
+        )
         self.assertEqual(r.status_code, 201)
         self.assertEqual(r.json()["name"], "Acme")
         self.assertEqual(Company.objects.get().owner, self.emp1)
@@ -71,7 +74,9 @@ class CompanyTests(Base):
 
     def test_candidate_cannot_create_company(self):
         self.login(self.cand)
-        r = self.client.post(COMPANY, {"name": "Acme", "description": "x"}, format="json")
+        r = self.client.post(
+            COMPANY, {"name": "Acme", "description": "x"}, format="json"
+        )
         self.assert_error(r, 403, "permission_denied")
         self.assertEqual(Company.objects.count(), 0)
 
@@ -80,13 +85,17 @@ class CompanyTests(Base):
         self.assert_error(self.client.get(COMPANY), 403, "permission_denied")
 
     def test_anonymous_cannot_create_company(self):
-        r = self.client.post(COMPANY, {"name": "Acme", "description": "x"}, format="json")
+        r = self.client.post(
+            COMPANY, {"name": "Acme", "description": "x"}, format="json"
+        )
         self.assert_error(r, 401, "not_authenticated")
 
     def test_second_company_for_same_employer_rejected(self):
         self.login(self.emp1)
         self.client.post(COMPANY, {"name": "Acme", "description": "x"}, format="json")
-        r = self.client.post(COMPANY, {"name": "Acme 2", "description": "y"}, format="json")
+        r = self.client.post(
+            COMPANY, {"name": "Acme 2", "description": "y"}, format="json"
+        )
         self.assert_error(r, 400, "validation_error")
         self.assertEqual(Company.objects.count(), 1)
 
@@ -127,8 +136,12 @@ class CompanyTests(Base):
 class JobsBase(Base):
     def setUp(self):
         super().setUp()
-        self.company1 = Company.objects.create(owner=self.emp1, name="Acme", description="d")
-        self.company2 = Company.objects.create(owner=self.emp2, name="Globex", description="d")
+        self.company1 = Company.objects.create(
+            owner=self.emp1, name="Acme", description="d"
+        )
+        self.company2 = Company.objects.create(
+            owner=self.emp2, name="Globex", description="d"
+        )
 
     def make_job(self, company=None, **overrides):
         data = job_payload(**overrides)
@@ -205,7 +218,9 @@ class JobCreateTests(JobsBase):
 
     def test_salary_min_above_max_rejected(self):
         self.login(self.emp1)
-        r = self.client.post(JOBS, job_payload(salary_min=300000, salary_max=100000), format="json")
+        r = self.client.post(
+            JOBS, job_payload(salary_min=300000, salary_max=100000), format="json"
+        )
         self.assert_error(r, 400, "validation_error")
         self.assertEqual(Job.objects.count(), 0)
 

@@ -1,4 +1,6 @@
 """Tests that unexpected server errors are hidden from clients and logged."""
+
+from typing import Any, cast
 from unittest.mock import patch
 
 from django.conf import settings
@@ -9,7 +11,9 @@ from rest_framework.test import APITestCase
 class ServerErrorLoggingTests(APITestCase):
     def test_crash_returns_clean_json_and_logs_the_traceback(self):
         # Force an unexpected error deep inside a normal request.
-        with patch.object(QuerySet, "__iter__", side_effect=RuntimeError("secret-internal-detail")):
+        with patch.object(
+            QuerySet, "__iter__", side_effect=RuntimeError("secret-internal-detail")
+        ):
             with self.assertLogs("django.request", level="ERROR") as logs:
                 response = self.client.get("/api/jobs/")
 
@@ -23,12 +27,13 @@ class ServerErrorLoggingTests(APITestCase):
         self.assertIn("secret-internal-detail", "\n".join(logs.output))
 
     def test_settings_send_server_errors_to_a_console_handler(self):
-        loggers = settings.LOGGING["loggers"]
+        logging_config = cast(dict[str, Any], settings.LOGGING)
+        loggers = logging_config["loggers"]
         self.assertIn("django.request", loggers)
         handler_names = loggers["django.request"]["handlers"]
         self.assertTrue(handler_names)
         for name in handler_names:
-            self.assertIn(name, settings.LOGGING["handlers"])
+            self.assertIn(name, logging_config["handlers"])
             self.assertEqual(
-                settings.LOGGING["handlers"][name]["class"], "logging.StreamHandler"
+                logging_config["handlers"][name]["class"], "logging.StreamHandler"
             )

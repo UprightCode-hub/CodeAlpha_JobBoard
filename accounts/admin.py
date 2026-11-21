@@ -8,7 +8,11 @@ from .models import User
 class CustomUserAdmin(UserAdmin):
     list_display = ("username", "email", "role", "is_staff", "is_active")
     search_fields = ("username", "email")
-    fieldsets = UserAdmin.fieldsets + (("Job board", {"fields": ("role",)}),)
-    add_fieldsets = UserAdmin.add_fieldsets + (
+    fieldsets = (
+        *(UserAdmin.fieldsets or ()),
+        ("Job board", {"fields": ("role",)}),
+    )
+    add_fieldsets = (
+        *(UserAdmin.add_fieldsets or ()),
         ("Job board", {"fields": ("email", "role")}),
     )

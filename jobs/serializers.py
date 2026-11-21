@@ -57,7 +57,11 @@ class JobSerializer(serializers.ModelSerializer):
             "salary_max",
             self.instance.salary_max if self.instance is not None else None,
         )
-        if current_min is not None and current_max is not None and current_min > current_max:
+        if (
+            current_min is not None
+            and current_max is not None
+            and current_min > current_max
+        ):
             raise serializers.ValidationError(
                 {"salary_min": "Minimum salary cannot exceed maximum salary."}
             )

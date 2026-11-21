@@ -1,19 +1,17 @@
 from django.db import IntegrityError, transaction
 from django.shortcuts import get_object_or_404
-from rest_framework import status
-from rest_framework import serializers
-from rest_framework.exceptions import NotFound, ValidationError
-from rest_framework.pagination import PageNumberPagination
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
-from rest_framework.views import APIView
-
 from drf_spectacular.utils import (
     OpenApiParameter,
     OpenApiTypes,
     extend_schema,
     inline_serializer,
 )
+from rest_framework import serializers, status
+from rest_framework.exceptions import NotFound, ValidationError
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from jobs.models import Job
 
@@ -156,7 +154,12 @@ class ApplicationListCreateView(APIView):
     def post(self, request):
         if getattr(request.user, "role", None) != "candidate":
             return Response(
-                {"error": {"code": "permission_denied", "message": "You do not have permission to perform this action."}},
+                {
+                    "error": {
+                        "code": "permission_denied",
+                        "message": "You do not have permission to perform this action.",
+                    }
+                },
                 status=status.HTTP_403_FORBIDDEN,
             )
 
@@ -166,19 +169,27 @@ class ApplicationListCreateView(APIView):
 
         try:
             job = Job.objects.select_related("company").get(pk=values["job"])
-        except Job.DoesNotExist:
-            raise ValidationError({"job": "The selected job does not exist."})
+        except Job.DoesNotExist as exc:
+            raise ValidationError({"job": "The selected job does not exist."}) from exc
         try:
             resume = Resume.objects.get(pk=values["resume"])
-        except Resume.DoesNotExist:
-            raise ValidationError({"resume": "The selected resume does not exist."})
+        except Resume.DoesNotExist as exc:
+            raise ValidationError(
+                {"resume": "The selected resume does not exist."}
+            ) from exc
 
         if not job.is_open:
-            return coded_error("job_closed", "This job is closed and cannot accept applications.")
+            return coded_error(
+                "job_closed", "This job is closed and cannot accept applications."
+            )
         if resume.candidate_id != request.user.pk:
-            return coded_error("invalid_resume", "The selected resume does not belong to you.")
+            return coded_error(
+                "invalid_resume", "The selected resume does not belong to you."
+            )
         if Application.objects.filter(candidate=request.user, job=job).exists():
-            return coded_error("duplicate_application", "You have already applied for this job.")
+            return coded_error(
+                "duplicate_application", "You have already applied for this job."
+            )
 
         try:
             # Store the application and notification together to avoid partial success.
@@ -193,7 +204,10 @@ class ApplicationListCreateView(APIView):
                     message=f"{request.user.username} applied for {job.title}"[:255],
                 )
         except IntegrityError:
-            if Application.objects.filter(candidate=request.user, job=job).first() is not None:
+            if (
+                Application.objects.filter(candidate=request.user, job=job).first()
+                is not None
+            ):
                 return coded_error(
                     "duplicate_application", "You have already applied for this job."
                 )
@@ -218,7 +232,9 @@ class ApplicationDetailView(APIView):
     )
     def get(self, request, pk):
         application = get_object_or_404(
-            Application.objects.select_related("job", "job__company", "candidate", "resume"),
+            Application.objects.select_related(
+                "job", "job__company", "candidate", "resume"
+            ),
             pk=pk,
         )
         is_candidate = (
@@ -247,17 +263,29 @@ class ApplicationStatusView(APIView):
     def patch(self, request, pk):
         if getattr(request.user, "role", None) == "candidate":
             return Response(
-                {"error": {"code": "permission_denied", "message": "You do not have permission to perform this action."}},
+                {
+                    "error": {
+                        "code": "permission_denied",
+                        "message": "You do not have permission to perform this action.",
+                    }
+                },
                 status=status.HTTP_403_FORBIDDEN,
             )
         if getattr(request.user, "role", None) != "employer":
             return Response(
-                {"error": {"code": "permission_denied", "message": "You do not have permission to perform this action."}},
+                {
+                    "error": {
+                        "code": "permission_denied",
+                        "message": "You do not have permission to perform this action.",
+                    }
+                },
                 status=status.HTTP_403_FORBIDDEN,
             )
 
         application = get_object_or_404(
-            Application.objects.select_related("job", "job__company", "candidate", "resume"),
+            Application.objects.select_related(
+                "job", "job__company", "candidate", "resume"
+            ),
             pk=pk,
         )
         if application.job.company.owner_id != request.user.pk:
@@ -274,7 +302,9 @@ class ApplicationStatusView(APIView):
             "rejected": set(),
         }
         if target not in allowed.get(application.status, set()):
-            return coded_error("invalid_transition", "This status transition is not allowed.")
+            return coded_error(
+                "invalid_transition", "This status transition is not allowed."
+            )
 
         application.status = target
         application.save(update_fields=("status", "updated_at"))
@@ -292,9 +322,11 @@ class NotificationListView(APIView):
         responses={200: NOTIFICATION_LIST_RESPONSE},
     )
     def get(self, request):
-        queryset = Notification.objects.filter(recipient=request.user).select_related(
-            "application"
-        ).order_by("-created_at", "-id")
+        queryset = (
+            Notification.objects.filter(recipient=request.user)
+            .select_related("application")
+            .order_by("-created_at", "-id")
+        )
         paginator = PageNumberPagination()
         page = paginator.paginate_queryset(queryset, request, view=self)
         return paginator.get_paginated_response(
