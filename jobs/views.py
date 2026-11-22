@@ -154,7 +154,7 @@ class OwnedJobView(APIView):
 
     def get_permissions(self):
         if self.request.method == "GET":
-            return [AllowAny()]
+            return [AllowAny(), IsOpenJobOrOwner()]
         return [IsAuthenticated(), IsEmployer(), IsJobOwner()]
 
     def get_owned_job(self, request, pk):
