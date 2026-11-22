@@ -143,8 +143,8 @@ class ConcurrentCompanyCreateTests(TransactionTestCase):
         for round_number in range(self.ROUNDS):
             emp = make_user(f"racer{round_number}")
             barrier = threading.Barrier(self.THREADS)
-            statuses = []
-            errors = []
+            statuses: list[int] = []
+            errors: list[str] = []
 
             def worker(
                 index,
