@@ -100,7 +100,7 @@ The checks before the transaction give clean errors. The unique constraint is th
 |---|---|---|---|
 | Authentication | SimpleJWT | Own token code | A tested library is safer than code I would have to secure myself |
 | Duplicate protection | Database constraint | Code check only | Two simultaneous requests can both pass a code check |
-| Resume validation | Extension, size and file signature | File name only | A renamed file can pretend to be a PDF |
+| Resume validation | Parse PDF or DOCX structure, validate required parts and enforce size limits | Extension or file signature alone | A renamed or padded file can pretend to be a valid upload |
 | Notifications | Written in the same transaction | A background worker | Simpler and consistent at this size. A worker is the next step at scale |
 | Application history | Protected from deletion | Cascade delete | History should not vanish by accident |
 | Docs | Swagger from the existing views | Rewriting views so the schema is guessed | Documentation should not change tested behavior |
@@ -114,7 +114,6 @@ Each of these is a real feature. I left them out to keep the core small and corr
 - A resume download endpoint.
 - Rate limiting on login.
 - CORS headers for a browser frontend on another address.
-- Production hardening: HTTPS, secret handling, `DEBUG=False` with a configurable `ALLOWED_HOSTS`.
 
 ## 8. Build order
 
@@ -132,7 +131,7 @@ Each step was finished and tested before the next started, because later steps d
 
 | Layer | What it proves | Result |
 |---|---|---|
-| Automated tests | Rules for roles, ownership, validation, filters, the apply flow, errors, admin, docs routes | 246 tests, OK |
+| Automated tests | Rules for roles, ownership, validation, filters, the apply flow, errors, admin, docs routes | 364 tests, OK |
 | Real HTTP checks | 139 checks against the running server with `DEBUG=True` | 139 passed, 0 failed |
 | Simultaneous apply | 10 requests at once by one candidate for one job | 1 x 201, 9 x 400 `duplicate_application`, no 500, then exactly 1 application and 1 notification in the database |
 | Fresh clone | A new folder, new virtual environment and empty database, following the README | Installed, migrated, seeded, docs page loaded, login returned tokens, unknown URL returned JSON |
@@ -147,6 +146,19 @@ Passing tests did not prove everything. Running the real server found problems t
 
 Each was fixed and covered by a test. See [DECISIONS.md](./DECISIONS.md).
 
+I also added adversarial suites for production settings, registration lockdown, resume validation, permissions and errors, company races and the OpenAPI contract.
+
+## Hardening round
+
+- Production settings reject weak `SECRET_KEY` values and empty `ALLOWED_HOSTS` when `DEBUG=False`.
+- Public registration is role-read-only and creates candidates.
+- Resume validation parses PDF and DOCX structure and limits expanded DOCX size.
+- Permission and error handling is centralized through reusable classes and the shared exception handler.
+- Closed jobs are hidden from non-owners by the job detail GET.
+- Company race handling converts a lost insert to 400 only when the employer now has a company.
+
+The permissions refactor introduced a regression where closed jobs became visible on detail GET. The existing 404 behavior was restored, and tests now cover it.
+
 ## 10. What I would do next
 
 If this grew, the next steps would be:
@@ -155,4 +167,3 @@ If this grew, the next steps would be:
 - Add indexes on the search columns.
 - Send notifications from a background worker.
 - Add a refresh token endpoint.
-- Make `ALLOWED_HOSTS` and `DEBUG` configurable for a real deployment.

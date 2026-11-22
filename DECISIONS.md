@@ -14,6 +14,16 @@ Each entry gives the decision, the alternative I rejected, why, and what breaks 
 - **Why:** SimpleJWT is a tested library, and writing my own token code adds risk for no benefit. The password never leaves the server.
 - **What breaks if changed:** A custom flow would need its own security testing, and extra fields could leak data.
 
+- **Decision:** Public registration ignores the submitted role and always creates a candidate. Employer status is granted only by a trusted administrator in Django admin.
+- **Alternative rejected:** Let the caller choose an employer or other role.
+- **Why:** The public signup endpoint must not allow privilege escalation.
+- **What breaks if changed:** An unauthenticated caller could create or select an employer account.
+
+- **Decision:** Role and ownership rules live in reusable DRF permission classes, and DRF exceptions pass through one shared exception handler.
+- **Alternative rejected:** Hand-build separate error responses in each view.
+- **Why:** Reusable permissions and one handler keep status codes and the JSON error shape consistent.
+- **What breaks if changed:** Views could return different status codes or error shapes.
+
 - **Decision:** Every error uses one JSON shape with a code and a plain sentence. Server errors show no internal detail.
 - **Alternative rejected:** Return serializer details or exception text to the client.
 - **Why:** One shape is easy for a client to handle, and exception text can expose internals.
@@ -25,6 +35,11 @@ Each entry gives the decision, the alternative I rejected, why, and what breaks 
 - **Alternative rejected:** Accept an owner in the request body, or allow many companies per employer.
 - **Why:** Taking the owner from the request would let anyone act for another employer. The database rule holds even if the application code has a bug.
 - **What breaks if changed:** An employer could create several companies or write jobs for someone else's company.
+
+- **Decision:** A company race catches `IntegrityError`, and if the employer now has a company it returns 400, otherwise it re-raises.
+- **Alternative rejected:** Let the database error become a 500 response.
+- **Why:** A concurrent second insert is a duplicate-company validation case, while unrelated integrity errors are real server failures.
+- **What breaks if changed:** Duplicate companies could return 500, or unrelated integrity errors could be hidden.
 
 - **Decision:** Company, owner and `is_open` are read-only in create and PATCH. A job is closed only through its own close endpoint.
 - **Alternative rejected:** Let clients set these fields in the body.
@@ -48,6 +63,11 @@ Each entry gives the decision, the alternative I rejected, why, and what breaks 
 - **Why:** ORM lookups keep search text safe from SQL injection, and loading the company with the job avoids one extra query per job in a list.
 - **What breaks if changed:** Owner details could leak, or search text could become an injection path.
 
+- **Decision:** Job detail GET applies `IsOpenJobOrOwner`, so a closed job is 404 for everyone except its owner.
+- **Alternative rejected:** Let any caller read any closed job.
+- **Why:** Closed listings should not be publicly visible, while their owning employer must still manage them.
+- **What breaks if changed:** Closed jobs could become publicly visible. This regressed once during permissions refactor commit 9799001 and is now covered by tests.
+
 ## Resumes, applications and notifications
 
 - **Decision:** Protect applications from deletion through the candidate, job or resume. Resumes are deleted with their candidate, and notifications are deleted with their recipient or application.
@@ -65,10 +85,10 @@ Each entry gives the decision, the alternative I rejected, why, and what breaks 
 - **Why:** The database columns have a fixed length, so the limit must be known and handled.
 - **What breaks if changed:** Long values would raise database errors.
 
-- **Decision:** Check the resume extension, size and file signature before saving. Create the application and its notification in one transaction.
-- **Alternative rejected:** Trust the file name, or create the two records separately.
-- **Why:** A renamed file can pretend to be a PDF, so the content is checked. One transaction means an application never exists without its notification.
-- **What breaks if changed:** Fake files could be stored, or an application could exist with no notification.
+- **Decision:** Validate resume uploads as real PDF or DOCX content. PDFs must parse with at least one page. DOCX files must be valid ZIP packages with required OOXML parts, valid XML and an expanded size limit. Enforce a 2 MB upload limit.
+- **Alternative rejected:** Trust the extension or check only the first bytes.
+- **Why:** Extension and signature checks do not prove that the file is a complete, usable document.
+- **What breaks if changed:** Fake or malformed files could be stored.
 
 - **Decision:** When a long job title would overflow a notification, cut the message to 255 characters.
 - **Alternative rejected:** Reject the application, or let the database raise an error.
@@ -97,6 +117,18 @@ Each entry gives the decision, the alternative I rejected, why, and what breaks 
 - **Why:** `updated_at` is `auto_now`, so the guard did nothing. A test that compared two clock readings was flaky because the two could be equal on Windows. The test now moves the stored time back before the update.
 - **What breaks if changed:** The test could fail at random.
 
+## Production settings
+
+- **Decision:** With `DEBUG=False`, startup fails fast on a weak `SECRET_KEY`: under 50 characters, a `django-insecure-` prefix, fewer than 10 distinct characters, or a known placeholder. Startup also fails on empty `ALLOWED_HOSTS`.
+- **Alternative rejected:** Accept weak default-style keys or leave deployment hosts unconfigured.
+- **Why:** A weak key or missing host configuration should stop startup instead of creating a misleading deployment.
+- **What breaks if changed:** Production deployments could use a predictable key or accept an unintended host configuration.
+
+- **Decision:** HTTPS redirect, secure cookies and HSTS default on in production-style settings and can be overridden by environment variables.
+- **Alternative rejected:** Leave HTTPS and cookie behavior disabled or make it fixed in code.
+- **Why:** Secure defaults protect deployment traffic, while environment overrides allow local HTTP and deployment-specific TLS termination.
+- **What breaks if changed:** Sessions or redirects could become insecure, or local production-style checks could be blocked by a hard-coded redirect.
+
 ## Admin, demo data and API docs
 
 - **Decision:** Register all six models in the Django admin with useful columns and search fields.
@@ -124,6 +156,7 @@ Each entry gives the decision, the alternative I rejected, why, and what breaks 
 - A fresh clone in a new folder, with a new virtual environment and an empty database, installed from `requirements.txt`, migrated, seeded and served the docs page.
 - 139 checks over real HTTP against the running server, with `DEBUG=True`, all passed.
 - 10 simultaneous apply requests by one candidate for one job gave 1 x 201 and 9 x 400 `duplicate_application`, with no 500. Afterwards the database held exactly 1 application and 1 notification. I could not tell whether the code check or the unique constraint rejected the nine.
+- The 139-check and 10-request figures were recorded before the hardening round. They were repeated afterwards only when the real-server check in this task actually ran.
 
 ## Not covered by tests
 
@@ -139,9 +172,8 @@ Each entry gives the decision, the alternative I rejected, why, and what breaks 
 - No reporting or statistics endpoint.
 - No CORS headers, so a browser frontend on another address would be blocked.
 - No rate limiting on login.
-- Runs locally on the Django development server. Not hardened for production: HTTPS, SECRET_KEY handling and DEBUG.
-- `DEBUG=False` is not supported yet, because `ALLOWED_HOSTS` is not configurable.
 - Logging goes to the console only.
+- Resume files remain on local disk.
 - The docs page needs an internet connection, because it loads its scripts from a CDN.
 - Four cosmetic drf-spectacular warnings remain: one missing type hint, and three enum name collisions.
 
@@ -151,4 +183,3 @@ Each entry gives the decision, the alternative I rejected, why, and what breaks 
 - Add indexes on the search columns.
 - Send notifications from a background worker.
 - Add a refresh token endpoint.
-- Make `ALLOWED_HOSTS` and `DEBUG` configurable for a real deployment.
