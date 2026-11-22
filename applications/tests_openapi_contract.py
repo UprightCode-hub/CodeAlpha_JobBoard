@@ -8,6 +8,7 @@ import re
 import subprocess
 import sys
 import tempfile
+from typing import Any
 
 import yaml
 from django.conf import settings
@@ -54,6 +55,9 @@ def normalize(path):
 
 
 class SchemaBase(TestCase):
+    schema: dict[str, Any]
+    paths: dict[str, Any]
+
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -322,6 +326,7 @@ class SerializerDriftTests(SchemaBase):
             with self.subTest(field=field):
                 enum = self.resolve(request["properties"][field])["enum"]
                 model_values = [
-                    value for value, _ in Job._meta.get_field(field).choices
+                    value
+                    for value, _ in Job._meta.get_field(field).choices  # type: ignore[union-attr]
                 ]
                 self.assertEqual(enum, model_values)

@@ -10,6 +10,7 @@ import re
 from datetime import timedelta
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -44,6 +45,11 @@ JOB_BODY = {
 
 
 class EnvelopeMixin:
+    assertEqual: Any
+    assertTrue: Any
+    assertIsInstance: Any
+    assertNotIn: Any
+
     def assert_envelope(self, response, status, code=None):
         self.assertEqual(response.status_code, status, response.content[:400])
         self.assertTrue(response["Content-Type"].startswith("application/json"))

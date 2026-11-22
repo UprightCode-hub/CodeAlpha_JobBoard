@@ -17,6 +17,7 @@ import secrets
 import subprocess
 import sys
 import textwrap
+from typing import Any
 
 from django.conf import settings
 from django.test import SimpleTestCase
@@ -98,6 +99,10 @@ def run(code, **env):
 
 
 class ProbeMixin:
+    assertEqual: Any
+    assertNotEqual: Any
+    assertIn: Any
+
     def load(self, **env):
         result = run(PROBE, **env)
         self.assertEqual(
