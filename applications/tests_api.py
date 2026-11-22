@@ -12,6 +12,7 @@ from django.test import override_settings
 from django.utils import timezone
 from rest_framework.test import APITestCase
 
+from applications import resume_files as rf
 from applications.models import Application, Notification, Resume
 from jobs.models import Company, Job
 
@@ -55,11 +56,13 @@ def make_user(username, role):
     )
 
 
-def pdf(name="cv.pdf", content=b"%PDF-1.4\nfake body\n"):
+def pdf(name="cv.pdf", content=None):
+    content = rf.valid_pdf_bytes() if content is None else content
     return SimpleUploadedFile(name, content, content_type="application/pdf")
 
 
-def docx(name="cv.docx", content=b"PK\x03\x04" + b"\x00" * 50):
+def docx(name="cv.docx", content=None):
+    content = rf.valid_docx_bytes() if content is None else content
     return SimpleUploadedFile(name, content, content_type="application/octet-stream")
 
 
@@ -244,9 +247,9 @@ class ResumeUploadTests(Base):
 
     def test_file_of_exactly_2mb_accepted(self):
         self.login(self.cand2)
-        exact = b"%PDF-" + b"0" * (MAX_BYTES - 5)
+        exact = rf.pdf_of_size(MAX_BYTES)
         self.assertEqual(len(exact), MAX_BYTES)
-        r = self.upload(pdf("cv.pdf", content=exact))
+        r = self.upload(pdf("exact.pdf", exact))
         self.assertEqual(r.status_code, 201)
 
     def test_missing_file_rejected(self):

@@ -54,10 +54,10 @@ class RegisterTests(ErrorShapeMixin, APITestCase):
         self.assertEqual(body["role"], "candidate")
         self.assertIn("id", body)
 
-    def test_register_employer_works(self):
+    def test_register_employer_role_is_ignored(self):
         r = self.client.post(REGISTER, good_payload(role="employer"), format="json")
         self.assertEqual(r.status_code, 201)
-        self.assertEqual(r.json()["role"], "employer")
+        self.assertEqual(r.json()["role"], "candidate")
 
     def test_password_is_never_returned(self):
         r = self.client.post(REGISTER, good_payload(), format="json")
@@ -81,15 +81,17 @@ class RegisterTests(ErrorShapeMixin, APITestCase):
         r = self.client.post(REGISTER, good_payload(username="grace"), format="json")
         self.assert_error(r, 400, "validation_error")
 
-    def test_invalid_role_rejected(self):
+    def test_unknown_role_is_ignored(self):
         r = self.client.post(REGISTER, good_payload(role="admin"), format="json")
-        self.assert_error(r, 400, "validation_error")
+        self.assertEqual(r.status_code, 201)
+        self.assertEqual(r.json()["role"], "candidate")
 
-    def test_missing_role_rejected(self):
+    def test_missing_role_is_accepted(self):
         payload = good_payload()
         del payload["role"]
         r = self.client.post(REGISTER, payload, format="json")
-        self.assert_error(r, 400, "validation_error")
+        self.assertEqual(r.status_code, 201)
+        self.assertEqual(r.json()["role"], "candidate")
 
     def test_missing_email_rejected(self):
         payload = good_payload()
@@ -145,7 +147,7 @@ class MeTests(ErrorShapeMixin, APITestCase):
         body = r.json()
         self.assertEqual(body["username"], "ada")
         self.assertEqual(body["email"], "ada@example.com")
-        self.assertEqual(body["role"], "employer")
+        self.assertEqual(body["role"], "candidate")
         self.assertNotIn("password", body)
 
 
@@ -202,7 +204,10 @@ class MalformedInputTests(ErrorShapeMixin, APITestCase):
         self.assert_error(r, 400, "validation_error")
 
     def test_failed_register_creates_no_user(self):
-        self.client.post(REGISTER, good_payload(role="admin"), format="json")
+        payload = good_payload(role="admin")
+        del payload["password"]
+        r = self.client.post(REGISTER, payload, format="json")
+        self.assertEqual(r.status_code, 400)
         self.assertEqual(User.objects.count(), 0)
 
     def test_registering_twice_leaves_exactly_one_user(self):
