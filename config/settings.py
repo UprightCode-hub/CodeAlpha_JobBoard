@@ -16,11 +16,18 @@ ALLOWED_HOSTS = [
 ]
 
 if not DEBUG:
-    if len(SECRET_KEY) < 50 or SECRET_KEY.lower() in {
-        "changeme",
-        "secret",
-        "django-insecure",
-    }:
+    distinct_characters = len(set(SECRET_KEY))
+    if (
+        len(SECRET_KEY) < 50
+        or SECRET_KEY.lower()
+        in {
+            "changeme",
+            "secret",
+            "django-insecure",
+        }
+        or SECRET_KEY.lower().startswith("django-insecure-")
+        or distinct_characters < 10
+    ):
         raise ImproperlyConfigured(
             "Set SECRET_KEY to a strong, unique value when DEBUG=False."
         )
